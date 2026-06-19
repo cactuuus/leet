@@ -4,7 +4,7 @@ A small CLI for practicing LeetCode problems locally, in your own editor, withou
 between the browser and your files.
 
 
-> - This is a small, personal project, likely to be in-progress for a long time, and never fully completed nor published. For now, the core flow (fetch, scaffold, view, open) works, though it could be improved.
+> - This is a small, personal project, likely to be in-progress for a long time, and never fully completed nor published. For now, the core flow (fetch, scaffold, open) works, though it could be improved.
 > - ***Submission is not implemented yet***.
 
 ## What it does
@@ -45,13 +45,6 @@ leet load 2135 --desc-only           # just the description, no code files
 leet load daily                      # today's daily challenge
 leet load 2135 --open                # also opens the folder afterward
 leet load 2135 --force               # skip the overwrite prompt
-```
-
-### Preview a problem in the terminal
-
-```bash
-leet view 2135
-leet view daily
 ```
 
 ### Open a problem folder (or the whole problems directory)
