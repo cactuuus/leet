@@ -3,6 +3,7 @@ package scaffold
 import (
 	"errors"
 	"fmt"
+	"html"
 	"os"
 	"path/filepath"
 	"strings"
@@ -131,13 +132,30 @@ func createSnippet(problem leetcode.Problem, lang language.Language) error {
 	return err
 }
 
-// CreateDescription creates a new file for the given problem with the problem description in HTML format.
-func CreateDescription(problem leetcode.Problem) error {
-	file, err := os.Create(filepath.Join(GetProblemDir(problem), "problem.html"))
+// BuildDescriptionHTML assembles a summary of the problem, including its name, difficulty, link, and the content of the problem itself, into an HTML string.
+func BuildDescriptionHTML(p leetcode.Problem) string {
+	return fmt.Sprintf(
+		`<h1><a href="%s" target="_blank" rel="noopener noreferrer">%d. %s</a></h1>
+<p>Difficulty: <strong>%s</strong></p>
+<hr>
+
+%s
+`,
+		p.Link(),
+		p.Number,
+		html.EscapeString(p.Name),
+		p.Difficulty,
+		p.Content,
+	)
+}
+
+// CreateDescription creates a new file named "problem.html" in the problem directory, containing the HTML description of the problem.
+func CreateDescription(p leetcode.Problem) error {
+	file, err := os.Create(filepath.Join(GetProblemDir(p), "problem.html"))
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	_, err = file.WriteString(problem.Content)
+	_, err = file.WriteString(BuildDescriptionHTML(p))
 	return err
 }
