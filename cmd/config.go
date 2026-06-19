@@ -26,7 +26,6 @@ var configShowCmd = &cobra.Command{
 			return err
 		}
 		fmt.Printf("Problems directory : %s\n", cfg.Paths.Problems)
-		fmt.Printf("Cache path         : %s\n", cfg.Paths.Cache)
 		fmt.Printf("Default languages  : %v\n", cfg.Languages.Preferred)
 		return nil
 	},

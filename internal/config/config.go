@@ -16,7 +16,6 @@ type Config struct {
 }
 
 type PathsConfig struct {
-	Cache		string	`toml:"cache"`
 	Problems 	string	`toml:"problems"`
 }
 
@@ -68,10 +67,6 @@ func UpdateConfig(cfg Config) error {
 	return encoder.Encode(cfg)
 }
 
-func (c Config) CachePath() string {
-	return c.Paths.Cache
-}
-
 func (c Config) ProblemsPath() string {
 	return c.Paths.Problems
 }
@@ -99,7 +94,6 @@ func DefaultConfig() (Config, error) {
 	}
 	return Config{
 		Paths: PathsConfig{
-			Cache:    filepath.Join(home, ".cache", "leet", "problems.json"),
 			Problems: filepath.Join(home, "leet-problems"),
 		},
 		Languages: LanguagesConfig{

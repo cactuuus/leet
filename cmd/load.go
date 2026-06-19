@@ -78,12 +78,10 @@ func loadProblem(cmd *cobra.Command, args []string) error {
 
 // initPackages loads the config file and initializes the packages that depend
 // on it (leetcode, scaffold). Returns the loaded config for callers that need it.
+// TODO: remove init, instead use constructors
 func initPackages() (config.Config, error) {
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		return config.Config{}, err
-	}
-	if err := leetcode.Init(cfg); err != nil {
 		return config.Config{}, err
 	}
 	if err := scaffold.Init(cfg); err != nil {
@@ -94,14 +92,19 @@ func initPackages() (config.Config, error) {
 
 // fetchByIdentifier fetches a problem given either "daily" or a numeric string.
 func fetchByIdentifier(identifier string) (leetcode.Problem, error) {
+	c, err := leetcode.NewClient()
+	if err != nil {
+		return leetcode.Problem{}, fmt.Errorf("failed to create leetcode client: %w", err)
+	}
+
 	if identifier == "daily" {
-		return leetcode.FetchDailyProblem()
+		return c.FetchDailyProblem()
 	}
 	number, err := strconv.Atoi(identifier)
 	if err != nil {
 		return leetcode.Problem{}, fmt.Errorf("invalid problem identifier: %q — use a problem number or 'daily'", identifier)
 	}
-	return leetcode.FetchProblem(number)
+	return c.FetchProblem(number)
 }
 
 // resolveLanguages determines which languages to scaffold based on flags and config.

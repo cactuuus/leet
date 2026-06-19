@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 )
 
@@ -20,8 +19,8 @@ type problemsResponse struct {
 
 // loadCache loads the problem slug map from disk.
 // Returns an empty map if the cache file does not exist yet.
-func loadCache() (map[int]string, error) {
-	file, err := os.Open(config.CachePath())
+func (c *Client) loadCache() (map[int]string, error) {
+	file, err := os.Open(c.cachePath)
 	if errors.Is(err, os.ErrNotExist) {
 		return map[int]string{}, nil
 	}
@@ -39,13 +38,13 @@ func loadCache() (map[int]string, error) {
 
 // refreshCache fetches all problem slugs from the LeetCode API, persists them to disk,
 // and returns the updated map.
-func refreshCache() (map[int]string, error) {
-	slugs, err := fetchAllSlugs()
+func (c *Client) refreshCache() (map[int]string, error) {
+	slugs, err := c.fetchAllSlugs()
 	if err != nil {
 		return nil, err
 	}
 
-	file, err := os.Create(config.CachePath())
+	file, err := os.Create(c.cachePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache file: %w", err)
 	}
@@ -67,8 +66,8 @@ func slugFromCache(number int, cache map[int]string) (string, error) {
 }
 
 // fetchAllSlugs fetches all problem slugs from the LeetCode REST API.
-func fetchAllSlugs() (map[int]string, error) {
-	res, err := http.Get("https://leetcode.com/api/problems/all/")
+func (c *Client) fetchAllSlugs() (map[int]string, error) {
+	res, err := c.httpClient.Get(c.baseURL + "/api/problems/all/")
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch problems: %w", err)
 	}
