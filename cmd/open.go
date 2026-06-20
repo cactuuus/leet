@@ -4,36 +4,69 @@ import (
 	"fmt"
 	"strconv"
 
+	"github.com/cactuuus/leet/internal/config"
+	"github.com/cactuuus/leet/internal/leetcode"
 	"github.com/cactuuus/leet/internal/scaffold"
 	"github.com/spf13/cobra"
 )
 
 var openCmd = &cobra.Command{
-	Use:   "open [number]",
-	Short: "Open a problem folder (or the problems directory if no number is provided), in your editor.",
+	Use:   "open [number|daily]",
+	Short: "Open a problem folder or the problems directory, in your editor.",
 	Args:  cobra.MaximumNArgs(1),
 	SilenceUsage:  true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := initPackages()
+		// load config, client and scaffolder
+		cfg, err := config.LoadConfig()
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to load config: %w", err)
+		}
+		scaffolder, err := scaffold.NewScaffolder(cfg.ProblemsPath())
+		if err != nil {
+			return fmt.Errorf("failed to create scaffolder: %w", err)
 		}
 
-		// no argument: open the root problems directory
-		if len(args) == 0 {
-			return cfg.OpenInEditor(cfg.ProblemsPath())
+		// determine the directory to open, then open it in the editor
+		var dir string
+		switch {
+			case len(args) == 0: // no argument: open the root problems directory
+				dir = cfg.ProblemsPath()
+			case args[0] == "daily": // if the argument is "daily", find the daily problem directory and open it
+				// create a new leetcode client to fetch the daily problem
+				c, err := leetcode.NewClient()
+				if err != nil {
+					return fmt.Errorf("failed to create leetcode client: %w", err)
+				}
+				// fetch the daily problem
+				fmt.Print("Fetching daily problem...")
+				p, err := c.FetchDailyProblem()
+				if err != nil {
+					return fmt.Errorf("failed to fetch daily problem: %w", err)
+				}
+				fmt.Print(" ✓\n")
+				// update dir to the daily problem's directory
+				dir, err = scaffolder.GetProblemDirByNumber(p.Number)
+				if err != nil {
+					return fmt.Errorf("%w — run 'leet load daily --open' instead", err)
+				}
+			default: // else, the argument should be a number, in which case we just open it
+				number, err := strconv.Atoi(args[0])
+				if err != nil {
+					return fmt.Errorf("invalid problem number: %s", args[0])
+				}
+				dir, err = scaffolder.GetProblemDirByNumber(number)
+				if err != nil {
+					return fmt.Errorf("%w — run 'leet load %d --open' instead", err, number)
+				}
 		}
 
-		// argument given: resolve and open that specific problem's folder
-		number, err := strconv.Atoi(args[0])
+		fmt.Printf("Opening in editor...")
+		err = cfg.OpenInEditor(dir)
 		if err != nil {
-			return fmt.Errorf("invalid problem number: %s", args[0])
+			return fmt.Errorf("failed to open directory in editor: %w", err)
 		}
-		dir, err := scaffold.GetProblemDirByNumber(number)
-		if err != nil {
-			return fmt.Errorf("%w — run 'leet load %d' first", err, number)
-		}
-		return cfg.OpenInEditor(dir)
+		fmt.Print(" ✓\n")
+		return nil
 	},
 }
 

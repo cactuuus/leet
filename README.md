@@ -20,7 +20,7 @@ leet load 22 -l go,python3
 creates:
 
 ```
-~/leetcode/22.generate-parentheses/
+~/leet-problems/22.generate-parentheses/
 ├── problem.html
 ├── 22.go
 └── 22.py

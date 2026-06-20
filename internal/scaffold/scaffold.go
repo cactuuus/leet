@@ -12,97 +12,46 @@ import (
 	"github.com/cactuuus/leet/internal/leetcode"
 )
 
-// Config is the configuration for the scaffold package.
-type Config interface {
-	// ProblemsPath returns the path to the problems directory.
-	ProblemsPath() string
+// Scaffolder manages problem folders and files on disk.
+type Scaffolder struct {
+	problemsDir string
 }
 
-var config Config
-
-// Init initializes the scaffold package with the provided configuration.
-func Init(cfg Config) error {
-	config = cfg
-	if err := os.MkdirAll(config.ProblemsPath(), 0755); err != nil {
-		return fmt.Errorf("failed to create problems directory: %w", err)
+func NewScaffolder(problemsDir string) (*Scaffolder, error) {
+	if err := os.MkdirAll(problemsDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create problems directory: %w", err)
 	}
-	return nil
-}
-
-// CheckConflicts returns languages that already have files in the problem directory.
-func CheckConflicts(problem leetcode.Problem, langs []language.Language) ([]language.Language, error) {
-	// if no languages are provided, there are no conflicts.
-	if len(langs) == 0 {
-		return []language.Language{}, nil
-	}
-	// if the problem directory doesn't exists, there are no conflicts in the first place.
-	_, err := os.Stat(GetProblemDir(problem))
-	if errors.Is(err, os.ErrNotExist) {
-		return []language.Language{}, nil
-	}
-	if err != nil {
-		return []language.Language{}, err
-	}
-	// check on a per-language basis.
-	var conflicts []language.Language
-	for _, l := range langs {
-		_, err := os.Stat(GetFilepath(problem, l))
-		if err == nil {
-			conflicts = append(conflicts, l)
-		}
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return []language.Language{}, err
-		}
-	}
-	return conflicts, nil
-}
-
-// ScaffoldProblem creates a new problem directory (if not existing) with the provided problem and languages.
-// If a file for a language already exists, it will be overwritten.
-func ScaffoldProblem(problem leetcode.Problem, langs []language.Language) error {
-	// create problem folder
-	if err := os.MkdirAll(GetProblemDir(problem), 0755); err != nil {
-		return fmt.Errorf("failed to create problem directory: %w", err)
-	}
-	// create description file
-	if err := CreateDescription(problem); err != nil {
-		return err
-	}
-	// create a file for each language
-	for _, l := range langs {
-		if err := createSnippet(problem, l); err != nil {
-			return err
-		}
-	}
-	return nil
+	return &Scaffolder{
+		problemsDir: problemsDir,
+	}, nil
 }
 
 // getProblemDir returns the full path to the directory for a given problem.
 //
-// Example: "/path/to/problems/1234.Two Sum".
-func GetProblemDir(problem leetcode.Problem) string {
-    return filepath.Join(config.ProblemsPath(), fmt.Sprintf("%d.%s", problem.Number, problem.Slug))
+// Example: "/path/to/problems/1234.two-sum".
+func (s *Scaffolder) GetProblemDir(p leetcode.Problem) string {
+    return filepath.Join(s.problemsDir, fmt.Sprintf("%d.%s", p.Number, p.Slug))
 }
 
 // getFilename returns the filename for a given problem and language.
 //
 // Example: "1234.py".
-func GetFilename(problem leetcode.Problem, lang language.Language) string {
-	return fmt.Sprintf("%d%s", problem.Number, lang.Extension)
+func (s *Scaffolder) GetSnippetFilename(p leetcode.Problem, l language.Language) string {
+	return fmt.Sprintf("%d%s", p.Number, l.Extension)
 }
 
 // getFilepath returns the full path to the file for a given problem and language.
 //
-// Example: "/path/to/problems/1234.Two Sum/1234.py".
-func GetFilepath(problem leetcode.Problem, lang language.Language) string {
-	return filepath.Join(GetProblemDir(problem), GetFilename(problem, lang))
+// Example: "/path/to/problems/1234.two-sum/1234.py".
+func (s *Scaffolder) GetFilepath(p leetcode.Problem, l language.Language) string {
+	return filepath.Join(s.GetProblemDir(p), s.GetSnippetFilename(p, l))
 }
 
-// GetProblemDirByNumber searches the problems directory for a folder belonging
-// to the given problem number, without needing to fetch the problem from the API.
+// GetProblemDirByNumber searches the problems directory for a folder belonging to the given problem
+// number, without needing to fetch the problem from the API.
 // Returns an error if no matching folder exists.
-func GetProblemDirByNumber(number int) (string, error) {
-	entries, err := os.ReadDir(config.ProblemsPath())
+func (s *Scaffolder) GetProblemDirByNumber(number int) (string, error) {
+	entries, err := os.ReadDir(s.problemsDir)
 	if err != nil {
 		return "", fmt.Errorf("failed to read problems directory: %w", err)
 	}
@@ -110,30 +59,64 @@ func GetProblemDirByNumber(number int) (string, error) {
 	prefix := fmt.Sprintf("%d.", number)
 	for _, entry := range entries {
 		if entry.IsDir() && strings.HasPrefix(entry.Name(), prefix) {
-			return filepath.Join(config.ProblemsPath(), entry.Name()), nil
+			return filepath.Join(s.problemsDir, entry.Name()), nil
 		}
 	}
 	return "", fmt.Errorf("problem %d hasn't been loaded yet", number)
 }
 
-// createSnippet creates a new file for the given problem and language with the corresponding code snippet.
-func createSnippet(problem leetcode.Problem, lang language.Language) error {
-	file, err := os.Create(GetFilepath(problem, lang))
+// SnippetExists checks if a code snippet file exists for the given problem and language.
+func (s *Scaffolder) SnippetExists(p leetcode.Problem, l language.Language) (bool, error) {
+	_, err := os.Stat(s.GetFilepath(p, l))
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	}
+	return false, err
+}
+
+// CreateSnippet creates (or overwrites) the code file for the given problem and language.
+func (s *Scaffolder) CreateSnippet(p leetcode.Problem, l language.Language) error {
+	// get the code snippet
+	snippet, ok := p.Snippets[l.Slug]
+	if !ok {
+		return fmt.Errorf("no snippet found for language %s", l.Name)
+	}
+	// ensures the problem directory exists
+	if err := os.MkdirAll(s.GetProblemDir(p), 0755); err != nil {
+		return fmt.Errorf("failed to create problem directory: %w", err)
+	}
+	// create the snippet file and write to it
+	file, err := os.Create(s.GetFilepath(p, l))
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	// write the code snippet for the given language to the file
-	snippet, ok := problem.Snippets[lang.Slug]
-	if !ok {
-		return fmt.Errorf("no snippet found for language %s", lang.Name)
-	}
 	_, err = file.WriteString(snippet)
 	return err
 }
 
-// BuildDescriptionHTML assembles a summary of the problem, including its name, difficulty, link, and the content of the problem itself, into an HTML string.
-func BuildDescriptionHTML(p leetcode.Problem) string {
+// CreateDescription creates a new file named "problem.html" in the problem directory, containing the HTML description of the problem.
+func (s *Scaffolder) CreateDescription(p leetcode.Problem) error {
+	// ensures the problem directory exists
+	if err := os.MkdirAll(s.GetProblemDir(p), 0755); err != nil {
+		return fmt.Errorf("failed to create problem directory: %w", err)
+	}
+	// create the description file and write to it
+	file, err := os.Create(filepath.Join(s.GetProblemDir(p), "problem.html"))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.WriteString(buildDescriptionHTML(p))
+	return err
+}
+
+// buildDescriptionHTML is a helper function that assembles a summary of the problem, including its
+// name, difficulty, link, and the content of the problem itself, into an HTML string.
+func buildDescriptionHTML(p leetcode.Problem) string {
 	return fmt.Sprintf(
 		`<h1><a href="%s" target="_blank" rel="noopener noreferrer">%d. %s</a></h1>
 <p>Difficulty: <strong>%s</strong></p>
@@ -147,15 +130,4 @@ func BuildDescriptionHTML(p leetcode.Problem) string {
 		p.Difficulty,
 		p.Content,
 	)
-}
-
-// CreateDescription creates a new file named "problem.html" in the problem directory, containing the HTML description of the problem.
-func CreateDescription(p leetcode.Problem) error {
-	file, err := os.Create(filepath.Join(GetProblemDir(p), "problem.html"))
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	_, err = file.WriteString(BuildDescriptionHTML(p))
-	return err
 }

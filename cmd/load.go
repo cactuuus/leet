@@ -35,76 +35,82 @@ func init() {
 	rootCmd.AddCommand(loadCmd)
 }
 
-// loadProblem is the entry point for 'leet load'. Each step is broken into its
-// own function so the overall flow reads top to bottom without nested logic.
+// loadProblem is the entry point for 'leet load'.
 func loadProblem(cmd *cobra.Command, args []string) error {
-	cfg, err := initPackages()
+	// initialize config, client, and scaffolder
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+	client, err := leetcode.NewClient()
+	if err != nil {
+		return fmt.Errorf("failed to create leetcode client: %w", err)
+	}
+	scaffolder, err := scaffold.NewScaffolder(cfg.Paths.Problems)
+	if err != nil {
+		return fmt.Errorf("failed to create scaffolder: %w", err)
+	}
+
+	// fetch the problem from LeetCode
+	fmt.Print("Fetching problem...")
+	problem, err := fetchByIdentifier(client, args[0])
 	if err != nil {
 		return err
 	}
+	fmt.Print(" ✓\n")
 
-	problem, err := fetchByIdentifier(args[0])
-	if err != nil {
-		return err
-	}
-
+	// determine which languages to scaffold
 	langs, err := resolveLanguages(cmd, cfg)
 	if err != nil {
 		return err
 	}
 
+	// if --force is not set and there are languages to scaffold, check for conflicts
 	force, _ := cmd.Flags().GetBool("force")
 	if !force && len(langs) > 0 {
-		langs, err = resolveConflicts(problem, langs)
+		langs, err = resolveConflicts(scaffolder, problem, langs)
 		if err != nil {
 			return err
 		}
 	}
 
-	if err := scaffold.ScaffoldProblem(problem, langs); err != nil {
-		return err
+	// create description
+	fmt.Print("Creating description...")
+	if err := scaffolder.CreateDescription(problem); err != nil {
+		return fmt.Errorf("failed to create description: %w", err)
+	}
+	fmt.Print(" ✓\n")
+
+	// create code files for each language
+	for _, l := range langs {
+		fmt.Printf("Creating %s snippet...", l.Name)
+		if err := scaffolder.CreateSnippet(problem, l); err != nil {
+			return fmt.Errorf("failed to create snippet for %s: %w", l.Name, err)
+		}
+		fmt.Print(" ✓\n")
 	}
 
-	printLoadSummary(problem, langs)
+	fmt.Printf("Scaffolded problem %d (%s)\n", problem.Number, problem.Name)
 
 	// open in editor if requested
 	if open, _ := cmd.Flags().GetBool("open"); open {
-		if err := cfg.OpenInEditor(scaffold.GetProblemDir(problem)); err != nil {
+		if err := cfg.OpenInEditor(scaffolder.GetProblemDir(problem)); err != nil {
 			return fmt.Errorf("failed to open problem folder: %w", err)
 		}
 	}
 	return nil
 }
 
-// initPackages loads the config file and initializes the packages that depend
-// on it (leetcode, scaffold). Returns the loaded config for callers that need it.
-// TODO: remove init, instead use constructors
-func initPackages() (config.Config, error) {
-	cfg, err := config.LoadConfig()
-	if err != nil {
-		return config.Config{}, err
-	}
-	if err := scaffold.Init(cfg); err != nil {
-		return config.Config{}, err
-	}
-	return cfg, nil
-}
-
 // fetchByIdentifier fetches a problem given either "daily" or a numeric string.
-func fetchByIdentifier(identifier string) (leetcode.Problem, error) {
-	c, err := leetcode.NewClient()
-	if err != nil {
-		return leetcode.Problem{}, fmt.Errorf("failed to create leetcode client: %w", err)
-	}
-
-	if identifier == "daily" {
+func fetchByIdentifier(c *leetcode.Client, id string) (leetcode.Problem, error) {
+	if id == "daily" {
 		return c.FetchDailyProblem()
 	}
-	number, err := strconv.Atoi(identifier)
+	num, err := strconv.Atoi(id)
 	if err != nil {
-		return leetcode.Problem{}, fmt.Errorf("invalid problem identifier: %q — use a problem number or 'daily'", identifier)
+		return leetcode.Problem{}, fmt.Errorf("invalid problem identifier: %q — use a problem number or 'daily'", id)
 	}
-	return c.FetchProblem(number)
+	return c.FetchProblem(num)
 }
 
 // resolveLanguages determines which languages to scaffold based on flags and config.
@@ -123,14 +129,15 @@ func resolveLanguages(cmd *cobra.Command, cfg config.Config) ([]language.Languag
 		return parseLanguageArgs(raw)
 	}
 
+	//TODO: do we need to thorw an error if no languages are configured? Or just return an empty slice?
 	if len(cfg.Languages.Preferred) == 0 {
 		return nil, fmt.Errorf("no languages specified and no defaults configured — use --langs, set defaults with 'leet config set-languages', or use --desc-only")
 	}
 	return parseLanguageArgs(cfg.Languages.Preferred)
 }
 
-// parseLanguageArgs resolves a list of language slugs/names into Language structs,
-// deduplicating and validating each one. Returns an empty slice for an empty input.
+// parseLanguageArgs resolves a list of language slugs/names into Language structs, deduplicating
+// and validating each one. Returns an empty slice for an empty input.
 func parseLanguageArgs(raw []string) ([]language.Language, error) {
 	seen := make(map[string]struct{})
 	langs := make([]language.Language, 0, len(raw))
@@ -149,10 +156,10 @@ func parseLanguageArgs(raw []string) ([]language.Language, error) {
 	return langs, nil
 }
 
-// resolveConflicts checks for existing files among langs and, if any are found,
-// prompts the user to overwrite, skip the conflicting ones, or abort.
-func resolveConflicts(problem leetcode.Problem, langs []language.Language) ([]language.Language, error) {
-	conflicts, err := scaffold.CheckConflicts(problem, langs)
+// resolveConflicts checks for existing files among langs and, if any are found, prompts the user to
+// overwrite, skip the conflicting ones, or abort.
+func resolveConflicts(s *scaffold.Scaffolder, p leetcode.Problem, langs []language.Language) ([]language.Language, error) {
+	conflicts, err := findConflicts(s, p, langs)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +169,7 @@ func resolveConflicts(problem leetcode.Problem, langs []language.Language) ([]la
 
 	fmt.Println("The following files already exist:")
 	for _, l := range conflicts {
-		fmt.Printf("  - %s\n", scaffold.GetFilename(problem, l))
+		fmt.Printf("  - %s\n", s.GetSnippetFilename(p, l))
 	}
 	fmt.Println("[y: overwrite, n: skip them, a: abort]")
 
@@ -189,6 +196,21 @@ func resolveConflicts(problem leetcode.Problem, langs []language.Language) ([]la
 	}
 }
 
+// findConflicts returns the languages that already have a snippet file on disk for this problem.
+func findConflicts(s *scaffold.Scaffolder, p leetcode.Problem, langs []language.Language) ([]language.Language, error) {
+	var conflicts []language.Language
+	for _, l := range langs {
+		exists, err := s.SnippetExists(p, l)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			conflicts = append(conflicts, l)
+		}
+	}
+	return conflicts, nil
+}
+
 // removeConflicting returns langs with any entries present in conflicts removed.
 func removeConflicting(langs, conflicts []language.Language) []language.Language {
 	skip := make(map[string]struct{}, len(conflicts))
@@ -203,18 +225,4 @@ func removeConflicting(langs, conflicts []language.Language) []language.Language
 		}
 	}
 	return filtered
-}
-
-// printLoadSummary prints a short confirmation of what was scaffolded.
-func printLoadSummary(problem leetcode.Problem, langs []language.Language) {
-	fmt.Printf("Scaffolded problem %d (%s)\n", problem.Number, problem.Name)
-	if len(langs) == 0 {
-		fmt.Println("Description only — no code files created.")
-		return
-	}
-	names := make([]string, len(langs))
-	for i, l := range langs {
-		names[i] = l.Name
-	}
-	fmt.Printf("Languages: %s\n", strings.Join(names, ", "))
 }
