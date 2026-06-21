@@ -1,118 +1,104 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/cactuuus/leet/internal/config"
-	"github.com/cactuuus/leet/internal/language"
 	"github.com/spf13/cobra"
 )
 
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Manage leet configuration.",
-	Long:  `View and update leet configuration settings.`,
-	SilenceUsage:  true,
+	Short: "View or edit leet's configuration.",
+	Long: `View or edit leet's configuration.
+The config file lives at ~/.config/leet/config.toml and is meant to be edited directly — there
+are no individual 'set' commands. It's commented with what each setting does; 'leet config edit'
+opens it in your editor.`,
+	SilenceUsage: true,
 }
 
-// config show, print current config values
 var configShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show current configuration.",
-	SilenceUsage:  true,
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.LoadConfig()
+		cfg, err := config.Load()
 		if err != nil {
 			return err
 		}
-		fmt.Printf("Problems directory : %s\n", cfg.Paths.Problems)
-		fmt.Printf("Default languages  : %v\n", cfg.Languages.Preferred)
+		fmt.Println(cfg)
 		return nil
 	},
 }
 
-// config set-languages, update the default languages
-var configSetLanguagesCmd = &cobra.Command{
-	Use:   "set-languages <languages...>",
-	Short: "Set the default languages to scaffold.",
-	Long: `Set the default languages used when no languages are specified in 'leet load'.
-Accepts language slugs or names, e.g: golang, python3, typescript, Go, C++`,
-	SilenceUsage:  true,
+var configEditCmd = &cobra.Command{
+	Use:   "edit",
+	Short: "Open the config file in your editor, for manual editing.",
+	SilenceUsage: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return fmt.Errorf("at least one language is required")
+		// get the path to the config file
+		path, err := config.Path()
+		if err != nil {
+			return err
 		}
+		// load the config - if it fails, it prints a warning but still attempts to open the config file in the editor, so the user can fix it manually.
+		cfg, err := config.Load()
+		if err != nil {
+			fmt.Printf("Failed to load config: %v\n", err)
+			fmt.Printf("Attempting to open the config file anyway, if this fails, you can manually edit it at '%s', or run 'leet config reset' to restore it to default values.\n", path)
+		}
+		fmt.Print("Opening in editor... ")
+		if err := openInEditor(cfg, path); err != nil {
+			return fmt.Errorf("failed to open config file in editor: %w", err)
+		}
+		fmt.Print("✓\n")
+		return nil
+	},
+}
 
-		// validate all languages before making any changes
-		var slugs []string
-		for _, arg := range args {
-			l, ok := language.Get(arg)
-			if !ok {
-				return fmt.Errorf("unknown language: %q — run 'leet languages' to see supported languages", arg)
+var configResetCmd = &cobra.Command{
+	Use:   "reset",
+	Short: "Reset the config file to default values. This simply deletes the config file and creates a new one with default values, hence it can be used to fix a corrupted config file.",
+	SilenceUsage: true,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Println("Are you sure you want to reset the config file to default values? This action cannot be undone. [y/n]")
+		scanner := bufio.NewScanner(os.Stdin)
+		loop := true
+		for loop {
+			fmt.Print("> ")
+			if !scanner.Scan() {
+				if err := scanner.Err(); err != nil {
+					return fmt.Errorf("failed to read input: %w", err)
+				}
+				return fmt.Errorf("no input received, aborting")
 			}
-			slugs = append(slugs, l.Slug)
+			switch strings.ToLower(strings.TrimSpace(scanner.Text())) {
+			case "y", "yes":
+				// proceed with reset
+				loop = false
+			case "n", "no":
+				loop = false
+				return nil
+			default:
+				fmt.Println("Please enter 'y' or 'n'.")
+			}
 		}
 
-		cfg, err := config.LoadConfig()
-		if err != nil {
+		fmt.Print("Resetting config file to default values... ")
+		if err := config.Reset(); err != nil {
 			return err
 		}
-		cfg.Languages.Preferred = slugs
-		if err := config.UpdateConfig(cfg); err != nil {
-			return err
-		}
-		fmt.Printf("Default languages updated: %v\n", slugs)
-		return nil
-	},
-}
-
-// config set-problems-dir, update the problems directory
-var configSetProblemsDirCmd = &cobra.Command{
-	Use:   "set-problems-dir <path>",
-	Short: "Set the directory where problems are scaffolded.",
-	SilenceUsage:  true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) == 0 {
-			return fmt.Errorf("path is required")
-		}
-		cfg, err := config.LoadConfig()
-		if err != nil {
-			return err
-		}
-		cfg.Paths.Problems = args[0]
-		if err := config.UpdateConfig(cfg); err != nil {
-			return err
-		}
-		fmt.Printf("Problems directory updated: %s\n", args[0])
-		return nil
-	},
-}
-
-var configSetEditorCmd = &cobra.Command{
-	Use:   "set-editor-cmd <command>",
-	Short: "Set the command used to open problem folders (e.g. 'code', 'subl', 'nvim').",
-	Args:  cobra.ExactArgs(1),
-	SilenceUsage:  true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.LoadConfig()
-		if err != nil {
-			return err
-		}
-		cfg.Editor.Command = args[0]
-		if err := config.UpdateConfig(cfg); err != nil {
-			return err
-		}
-		fmt.Printf("Editor command set to: %s\n", args[0])
+		fmt.Print("✓\n")
 		return nil
 	},
 }
 
 func init() {
-	// register subcommands on configCmd
 	configCmd.AddCommand(configShowCmd)
-	configCmd.AddCommand(configSetLanguagesCmd)
-	configCmd.AddCommand(configSetProblemsDirCmd)
-	configCmd.AddCommand(configSetEditorCmd)
-	// register configCmd with root
+	configCmd.AddCommand(configEditCmd)
+	configCmd.AddCommand(configResetCmd)
 	rootCmd.AddCommand(configCmd)
 }

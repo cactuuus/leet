@@ -38,7 +38,7 @@ func init() {
 // loadProblem is the entry point for 'leet load'.
 func loadProblem(cmd *cobra.Command, args []string) error {
 	// initialize config, client, and scaffolder
-	cfg, err := config.LoadConfig()
+	cfg, err := config.Load()
 	if err != nil {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
@@ -46,18 +46,18 @@ func loadProblem(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create leetcode client: %w", err)
 	}
-	scaffolder, err := scaffold.NewScaffolder(cfg.Paths.Problems)
+	scaffolder, err := scaffold.NewScaffolder(cfg.ProblemsDir)
 	if err != nil {
 		return fmt.Errorf("failed to create scaffolder: %w", err)
 	}
 
 	// fetch the problem from LeetCode
-	fmt.Print("Fetching problem...")
+	fmt.Print("Fetching problem... ")
 	problem, err := fetchByIdentifier(client, args[0])
 	if err != nil {
 		return err
 	}
-	fmt.Print(" ✓\n")
+	fmt.Print("✓\n")
 
 	// determine which languages to scaffold
 	langs, err := resolveLanguages(cmd, cfg)
@@ -75,28 +75,30 @@ func loadProblem(cmd *cobra.Command, args []string) error {
 	}
 
 	// create description
-	fmt.Print("Creating description...")
+	fmt.Print("Creating description... ")
 	if err := scaffolder.CreateDescription(problem); err != nil {
 		return fmt.Errorf("failed to create description: %w", err)
 	}
-	fmt.Print(" ✓\n")
+	fmt.Print("✓\n")
 
 	// create code files for each language
 	for _, l := range langs {
-		fmt.Printf("Creating %s snippet...", l.Name)
+		fmt.Printf("Creating %s snippet... ", l.Name)
 		if err := scaffolder.CreateSnippet(problem, l); err != nil {
 			return fmt.Errorf("failed to create snippet for %s: %w", l.Name, err)
 		}
-		fmt.Print(" ✓\n")
+		fmt.Print("✓\n")
 	}
 
 	fmt.Printf("Scaffolded problem %d (%s)\n", problem.Number, problem.Name)
 
 	// open in editor if requested
 	if open, _ := cmd.Flags().GetBool("open"); open {
-		if err := cfg.OpenInEditor(scaffolder.GetProblemDir(problem)); err != nil {
+		fmt.Print("Opening in editor... ")
+		if err := openInEditor(cfg, scaffolder.GetProblemDir(problem)); err != nil {
 			return fmt.Errorf("failed to open problem folder: %w", err)
 		}
+		fmt.Print("✓\n")
 	}
 	return nil
 }
@@ -129,11 +131,10 @@ func resolveLanguages(cmd *cobra.Command, cfg config.Config) ([]language.Languag
 		return parseLanguageArgs(raw)
 	}
 
-	//TODO: do we need to thorw an error if no languages are configured? Or just return an empty slice?
-	if len(cfg.Languages.Preferred) == 0 {
-		return nil, fmt.Errorf("no languages specified and no defaults configured — use --langs, set defaults with 'leet config set-languages', or use --desc-only")
+	if len(cfg.PreferredLanguages) == 0 {
+		return nil, fmt.Errorf("no languages specified and no defaults configured — use --langs, set defaults in your config file (leet config edit)")
 	}
-	return parseLanguageArgs(cfg.Languages.Preferred)
+	return parseLanguageArgs(cfg.PreferredLanguages)
 }
 
 // parseLanguageArgs resolves a list of language slugs/names into Language structs, deduplicating

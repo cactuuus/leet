@@ -17,11 +17,11 @@ var openCmd = &cobra.Command{
 	SilenceUsage:  true,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// load config, client and scaffolder
-		cfg, err := config.LoadConfig()
+		cfg, err := config.Load()
 		if err != nil {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
-		scaffolder, err := scaffold.NewScaffolder(cfg.ProblemsPath())
+		scaffolder, err := scaffold.NewScaffolder(cfg.ProblemsDir)
 		if err != nil {
 			return fmt.Errorf("failed to create scaffolder: %w", err)
 		}
@@ -30,7 +30,7 @@ var openCmd = &cobra.Command{
 		var dir string
 		switch {
 			case len(args) == 0: // no argument: open the root problems directory
-				dir = cfg.ProblemsPath()
+				dir = cfg.ProblemsDir
 			case args[0] == "daily": // if the argument is "daily", find the daily problem directory and open it
 				// create a new leetcode client to fetch the daily problem
 				c, err := leetcode.NewClient()
@@ -38,12 +38,12 @@ var openCmd = &cobra.Command{
 					return fmt.Errorf("failed to create leetcode client: %w", err)
 				}
 				// fetch the daily problem
-				fmt.Print("Fetching daily problem...")
+				fmt.Print("Fetching daily problem... ")
 				p, err := c.FetchDailyProblem()
 				if err != nil {
 					return fmt.Errorf("failed to fetch daily problem: %w", err)
 				}
-				fmt.Print(" ✓\n")
+				fmt.Print("✓\n")
 				// update dir to the daily problem's directory
 				dir, err = scaffolder.GetProblemDirByNumber(p.Number)
 				if err != nil {
@@ -60,12 +60,12 @@ var openCmd = &cobra.Command{
 				}
 		}
 
-		fmt.Printf("Opening in editor...")
-		err = cfg.OpenInEditor(dir)
+		fmt.Print("Opening in editor... ")
+		err = openInEditor(cfg, dir)
 		if err != nil {
 			return fmt.Errorf("failed to open directory in editor: %w", err)
 		}
-		fmt.Print(" ✓\n")
+		fmt.Print("✓\n")
 		return nil
 	},
 }

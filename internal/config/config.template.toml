@@ -1,0 +1,21 @@
+# leet configuration file.
+# Edit this file directly
+
+# Where problem folders get created.
+# If you change this, you will need to move your existing problems to the new location, or leet will not be able to find them.
+# EXAMPLE: "/home/johndoe/leet-problems"
+# DEFAULT: "YOUR/HOME/PATH/leet-problems"
+problems_dir = "{{.Home}}/leet-problems"
+
+# Languages to scaffold by default when 'leet load' runs without --langs.
+# Run 'leet languages' to see supported languages. This is case insensitive, and accepts both slugs and names (e.g. "Go", "go", and "golang" are all accepted).
+# Leave empty to require --langs or --desc-only on every load.
+# EXAMPLE: ["golang", "python3", "typescript"]
+# DEFAULT: []
+preferred_languages = []
+
+# Command used to open problem folders (e.g. "code", "subl", "nvim", "idea").
+# If left empty, falls back to the $EDITOR environment variable. If that's also unset, 'leet open' and 'leet load --open' will return an error.
+# EXAMPLE: "code"
+# DEFAULT: ""
+editor_cmd = ""
