@@ -22,32 +22,22 @@ type Config struct {
 }
 
 // Load loads the configuration from the standard config file location.
-// If the config file does not exist, it will be created with default values.
+// If the file does not exist, it will be created with default values.
 func Load() (Config, error) {
 	path, err := Path()
 	if err != nil {
 		return Config{}, err
 	}
-	// If the config file does not exist, create it with default values.
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := writeDefault(path); err != nil {
-			return Config{}, err
-		}
-	}
-	var cfg Config
-	if _, err := toml.DecodeFile(path, &cfg); err != nil {
-		return Config{}, fmt.Errorf("failed to decode config file: %w", err)
-	}
-	return cfg, nil
+	return loadFrom(path)
 }
 
-// Reset resets the configuration file to default values. This simply deletes the config file and creates a new one with default values.
+// Reset resets the configuration file to default values.
 func Reset() error {
 	path, err := Path()
 	if err != nil {
 		return err
 	}
-	return writeDefault(path)
+	return resetAt(path)
 }
 
 // Path returns the standard location of the config file: ~/.config/leet/config.toml
@@ -58,7 +48,6 @@ func Path() (string, error) {
 	}
 	return filepath.Join(home, ".config", "leet", "config.toml"), nil
 }
-
 
 // String returns a human-readable summary of the configuration.
 func (c Config) String() string {
@@ -71,6 +60,28 @@ func (c Config) String() string {
 	)
 }
 
+// loadFrom loads the configuration from the given path.
+// If the file does not exist, it will be created with default values.
+// This function is used internally, added for ease of testing, and is not exposed to the user.
+func loadFrom(path string) (Config, error) {
+	// If the config file does not exist, create it with default values.
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if err := writeDefault(path); err != nil {
+			return Config{}, err
+		}
+	}
+	var cfg Config
+	// Decode the config file into the Config struct.
+	if _, err := toml.DecodeFile(path, &cfg); err != nil {
+		return Config{}, fmt.Errorf("failed to decode config file: %w", err)
+	}
+	return cfg, nil
+}
+
+// resetAt resets the configuration file at the given path to default values.
+func resetAt(path string) error {
+	return writeDefault(path)
+}
 
 // writeDefault writes the default configuration to the given path, creating any necessary directories.
 func writeDefault(path string) error {
