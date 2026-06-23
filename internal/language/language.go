@@ -8,7 +8,6 @@ type Language struct {
 	Name 		string
 	Slug 		string
 	Extension 	string
-	Aliases 	[]string
 }
 
 // Known maps language slugs to their corresponding Language struct, listing all recognised
@@ -41,14 +40,16 @@ var	known = map[string]Language{
 // Get looks up a language by slug or display name (case-insensitive).
 // Returns the Language and true if found, or an empty Language and false if not.
 func Get(id string) (Language, bool) {
+	// normalize to lowercase for case-insensitive comparison
+	id = strings.ToLower(id)
+
 	// try slug lookup first
 	if l, ok := known[id]; ok {
 		return l, true
 	}
-	// fallback to case-insensitive name lookup
-	name := strings.ToLower(id)
+	// fallback to name lookup
 	for _, l := range known {
-		if strings.ToLower(l.Name) == name {
+		if strings.ToLower(l.Name) == id {
 			return l, true
 		}
 	}
