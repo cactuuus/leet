@@ -13,10 +13,10 @@ type Problem struct {
 	Difficulty	string
 	IsPaid		bool
 	Snippets	map[string]string	// language-slug -> code-snippet
+	Link		string				// URL to the problem
 }
 
-// Link returns the URL to the problem on LeetCode.
-// This uses the default base URL, meaning it will always point to the main LeetCode site, even if the client was configured to use a different base URL.
-func (p *Problem) Link() string {
-	return fmt.Sprintf("%s/problems/%s", leetcodeURL, p.Slug)
+// problemLink constructs the URL to the problem.
+func problemLink(baseURL string, slug string) string {
+	return fmt.Sprintf("%s/problems/%s", baseURL, slug)
 }

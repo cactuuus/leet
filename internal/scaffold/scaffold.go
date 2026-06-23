@@ -117,14 +117,15 @@ func (s *Scaffolder) CreateDescription(p leetcode.Problem) error {
 // buildDescriptionHTML is a helper function that assembles a summary of the problem, including its
 // name, difficulty, link, and the content of the problem itself, into an HTML string.
 func buildDescriptionHTML(p leetcode.Problem) string {
+	// TODO: use proper HTML templating instead of string concatenation
 	return fmt.Sprintf(
-		`<h1><a href="%s" target="_blank" rel="noopener noreferrer">%d. %s</a></h1>
-<p>Difficulty: <strong>%s</strong></p>
-<hr>
-
-%s
-`,
-		p.Link(),
+		"<h1>\n" +
+		"\t<a href=\"%s\" target=\"_blank\" rel=\"noopener noreferrer\">%d. %s</a>\n" +
+		"</h1>\n" +
+		"<p>Difficulty: <strong>%s</strong></p>\n" +
+		"<hr>\n\n" +
+		"%s\n",
+		p.Link,
 		p.Number,
 		html.EscapeString(p.Name),
 		p.Difficulty,

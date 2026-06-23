@@ -80,6 +80,7 @@ func (c *Client) fetchProblemBySlug(slug string) (Problem, error) {
 		Difficulty: q.Difficulty,
 		IsPaid:     q.IsPaidOnly,
 		Snippets:   snippets,
+		Link:       problemLink(c.baseURL, q.TitleSlug),
 	}, nil
 }
 
