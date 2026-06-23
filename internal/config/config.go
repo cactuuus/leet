@@ -91,24 +91,3 @@ func writeDefault(path string) error {
 	}
 	return os.WriteFile(path, buf.Bytes(), 0644)
 }
-
-// LoadDefault returns the default configuration without writing it to disk.
-func LoadDefault() (Config, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return Config{}, err
-	}
-	tmpl, err := template.New("config").Parse(configTemplate)
-	if err != nil {
-		return Config{}, fmt.Errorf("failed to parse config template: %w", err)
-	}
-	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, map[string]string{"Home": home}); err != nil {
-		return Config{}, fmt.Errorf("failed to render config template: %w", err)
-	}
-	var cfg Config
-	if _, err := toml.Decode(buf.String(), &cfg); err != nil {
-		return Config{}, fmt.Errorf("failed to decode default config: %w", err)
-	}
-	return cfg, nil
-}

@@ -172,7 +172,7 @@ func resolveConflicts(s *scaffold.Scaffolder, p leetcode.Problem, langs []langua
 	for _, l := range conflicts {
 		fmt.Printf("  - %s\n", s.GetSnippetFilename(p, l))
 	}
-	fmt.Println("[y: overwrite, n: skip them, a: abort]")
+	fmt.Println("[y: overwrite, n: skip, a: abort]")
 
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
