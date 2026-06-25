@@ -21,7 +21,7 @@ creates:
 
 ```
 ~/leet-problems/22.generate-parentheses/
-├── problem.html
+├── desc-22.html
 ├── 22.go
 └── 22.py
 ```
@@ -51,36 +51,31 @@ leet load 2135 --force               # skip the overwrite prompt
 
 ```bash
 leet open 2135    # opens that problem's folder
+leet open daily   # opens today's daily challenge folder
 leet open         # opens the root problems directory
 ```
 
-### List supported languages
-Note: this *should* match the languages that LeetCode itself supports.
+### Other commands
 
 ```bash
-leet languages
+leet languages    # list supported languages (same as LeetCode's)
+leet config show  # show current configuration
+leet config edit  # open the config file in your editor
+leet config reset # reset config to defaults
 ```
 
 ### Configuration
 
-```bash
-leet config show
-leet config set-languages go,python3,typescript
-leet config set-problems-dir ~/code/leetcode
-leet config set-editor-cmd code     # or subl, nvim, etc.
-```
-
-Config lives at `~/.config/leet/config.toml`. \
-Problems list is cached at `~/.cache/leet/problems.json` so `leet` doesn't refetch LeetCode's full
-problem list on every run. It is only ever refreshed on a cache miss.
+Config lives at `~/.config/leet/config.toml`. It is meant to be edited directly, with comments explaining each option.
+If the commands to edit or reset the config don't work, you can always open it manually.
 
 ## How it works
 
 - LeetCode exposes an internal GraphQL endpoint (`leetcode.com/graphql`) and a REST endpoint
   (`leetcode.com/api/problems/all/`) that the web app itself uses.
-- Problem numbers aren't valid API identifiers — only slugs are (e.g. `two-sum`). `leet` caches a
+- Problem numbers aren't valid API identifiers, only slugs are (e.g. `two-sum`). `leet` caches a
   number → slug map locally and refreshes it automatically on a cache miss.
-- Paid-only problems are detected and rejected with a clear error, since fetching them requires a
+- Paid-only problems are detected and rejected with a clear error, since they require a
   LeetCode Premium session (not yet supported).
 
 ## Project layout
