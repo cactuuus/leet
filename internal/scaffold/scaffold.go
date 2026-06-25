@@ -43,8 +43,22 @@ func (s *Scaffolder) GetSnippetFilename(p leetcode.Problem, l language.Language)
 // getFilepath returns the full path to the file for a given problem and language.
 //
 // Example: "/path/to/problems/1234.two-sum/1234.py".
-func (s *Scaffolder) GetFilepath(p leetcode.Problem, l language.Language) string {
+func (s *Scaffolder) GetSnippetFilepath(p leetcode.Problem, l language.Language) string {
 	return filepath.Join(s.GetProblemDir(p), s.GetSnippetFilename(p, l))
+}
+
+// getDescFilename returns the filename for the HTML description of a given problem.
+//
+// Example: "desc-1234.html".
+func (s *Scaffolder) GetDescFilename(p leetcode.Problem) string {
+	return fmt.Sprintf("desc-%d.html", p.Number)
+}
+
+// getDescFilepath returns the full path to the HTML description file for a given problem.
+//
+// Example: "/path/to/problems/1234.two-sum/desc-1234.html".
+func (s *Scaffolder) GetDescFilepath(p leetcode.Problem) string {
+	return filepath.Join(s.GetProblemDir(p), s.GetDescFilename(p))
 }
 
 // GetProblemDirByNumber searches the problems directory for a folder belonging to the given problem
@@ -67,7 +81,7 @@ func (s *Scaffolder) GetProblemDirByNumber(number int) (string, error) {
 
 // SnippetExists checks if a code snippet file exists for the given problem and language.
 func (s *Scaffolder) SnippetExists(p leetcode.Problem, l language.Language) (bool, error) {
-	_, err := os.Stat(s.GetFilepath(p, l))
+	_, err := os.Stat(s.GetSnippetFilepath(p, l))
 	if err == nil {
 		return true, nil
 	}
@@ -89,7 +103,7 @@ func (s *Scaffolder) CreateSnippet(p leetcode.Problem, l language.Language) erro
 		return fmt.Errorf("failed to create problem directory: %w", err)
 	}
 	// create the snippet file and write to it
-	file, err := os.Create(s.GetFilepath(p, l))
+	file, err := os.Create(s.GetSnippetFilepath(p, l))
 	if err != nil {
 		return err
 	}
@@ -105,7 +119,7 @@ func (s *Scaffolder) CreateDescription(p leetcode.Problem) error {
 		return fmt.Errorf("failed to create problem directory: %w", err)
 	}
 	// create the description file and write to it
-	file, err := os.Create(filepath.Join(s.GetProblemDir(p), "problem.html"))
+	file, err := os.Create(s.GetDescFilepath(p))
 	if err != nil {
 		return err
 	}
