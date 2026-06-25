@@ -43,26 +43,24 @@ func (c *Client) refreshCache() (map[int]string, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	file, err := os.Create(c.cachePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create cache file: %w", err)
-	}
-	defer file.Close()
-
-	if err := json.NewEncoder(file).Encode(slugs); err != nil {
-		return nil, fmt.Errorf("failed to write cache file: %w", err)
+	if err := c.saveCache(slugs); err != nil {
+		return nil, err
 	}
 	return slugs, nil
 }
 
-// slugFromCache retrieves the slug for a given problem number from the cache.
-func slugFromCache(number int, cache map[int]string) (string, error) {
-	slug, ok := cache[number]
-	if !ok {
-		return "", fmt.Errorf("problem %d not found in cache", number)
+// saveCache saves the problem slug map to disk.
+func (c *Client) saveCache(cache map[int]string) error {
+	file, err := os.Create(c.cachePath)
+	if err != nil {
+		return fmt.Errorf("failed to create cache file: %w", err)
 	}
-	return slug, nil
+	defer file.Close()
+
+	if err := json.NewEncoder(file).Encode(cache); err != nil {
+		return fmt.Errorf("failed to write cache file: %w", err)
+	}
+	return nil
 }
 
 // fetchAllSlugs fetches all problem slugs from the LeetCode REST API.

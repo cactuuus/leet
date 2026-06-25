@@ -92,14 +92,14 @@ func (c *Client) FetchProblem(number int) (Problem, error) {
 		return Problem{}, err
 	}
 
-	slug, err := slugFromCache(number, cache)
-	if err != nil {
+	slug, ok := cache[number]
+	if !ok {
 		cache, err = c.refreshCache()
 		if err != nil {
 			return Problem{}, err
 		}
-		slug, err = slugFromCache(number, cache)
-		if err != nil {
+		slug, ok = cache[number]
+		if !ok {
 			return Problem{}, fmt.Errorf("problem %d does not exist", number)
 		}
 	}
