@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/cactuuus/leet/internal/language"
@@ -12,7 +11,7 @@ import (
 
 func NewRunCmd(ctx AppContext) *cobra.Command {
     runCmd := &cobra.Command{
-        Use:            "run <number> <lang>",
+        Use:            "run <number|daily> <lang>",
         Short:          "Run your solution against the example test cases.",
         Long:           "Run your solution against the example test cases.\nThese testcases are stored in 'testcases-<number>.txt', inside of the problem folder, where each argument is separated by a newline, and each testcase is separated by a divider (---). You can manually edit this file, adding or removing testcases.",
         SilenceUsage:   true,
@@ -29,16 +28,6 @@ func NewRunCmd(ctx AppContext) *cobra.Command {
 }
 
 func runProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
-    // initial validation of arguments
-    number, err := strconv.Atoi(args[0])
-    if err != nil {
-        return fmt.Errorf("invalid problem number: %q", args[0])
-    }
-    lang, ok := language.Get(args[1])
-    if !ok {
-        return fmt.Errorf("unknown language: %q — run 'leet languages' to see supported languages", args[1])
-    }
-
     // parse flags
     verbose, err := cmd.Flags().GetBool("verbose")
     if err != nil {
@@ -57,23 +46,28 @@ func runProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
         return fmt.Errorf("this command requires authentication. Add your LeetCode credentials in the config file using 'leet config edit'")
     }
 
-    // get problem info
-    p, err := c.GetProblemPreview(number)
+    // get and validate language
+    lang, ok := language.Get(args[1])
+    if !ok {
+        return fmt.Errorf("unknown language: %q — run 'leet languages' to see supported languages", args[1])
+    }
+    // get and validate problem
+    p, err := fetchPreviewByIdentifier(c, args[0])
     if err != nil {
-        return fmt.Errorf("could not find problem %d: %w", number, err)
+        return err
     }
 
     // check if the problem directory and the snippet file exist
     if exists, err := s.ProblemDirExists(p); err != nil {
-        return fmt.Errorf("failed to check if problem %d is scaffolded: %w", number, err)
+        return fmt.Errorf("failed to check if problem %d is scaffolded: %w", p.Number, err)
     } else if !exists {
-        return fmt.Errorf("problem %d is not scaffolded. Run 'leet load %d' first", number, number)
+        return fmt.Errorf("problem %d is not scaffolded. Run 'leet load %d' first", p.Number, p.Number)
     }
     if exists, err := s.SnippetExists(p, lang); err != nil {
-        return fmt.Errorf("failed to check if %s snippet exists for problem %d: %w", lang.Name, number, err)
+        return fmt.Errorf("failed to check if %s snippet exists for problem %d: %w", lang.Name, p.Number, err)
     } else if !exists {
         return fmt.Errorf("no %s file found for problem %d — run 'leet load %d --langs %s' first",
-            lang.Name, number, number, lang.Slug)
+            lang.Name, p.Number, p.Number, lang.Slug)
     }
 
     // read the code snippet
@@ -89,7 +83,7 @@ func runProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
     }
 
     // run the code
-    fmt.Printf("Running problem %d (%s) in %s...", number, p.Title, lang.Name)
+    fmt.Printf("Running problem %d (%s) in %s...", p.Number, p.Title, lang.Name)
     result, err := c.RunCode(p.Slug, p.InternalID, lang.Slug, code, tests)
     if err != nil {
         return fmt.Errorf("failed to run solution: %w", err)

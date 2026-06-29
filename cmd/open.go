@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -31,32 +30,15 @@ func openProblem(_ *cobra.Command, args []string, ctx AppContext) error {
 		dirToOpen = cfg.ProblemsDir
 	} else {
 		c, s := ctx.Client(), ctx.Scaffolder()
-
-		// fetch the daily problem
-		if args[0] == "daily" {
-			fmt.Print("Fetching daily problem... ")
-			p, err := c.FetchDailyProblem()
-			if err != nil {
-				return fmt.Errorf("failed to fetch daily problem: %w", err)
-			}
-			fmt.Print("✓\n")
-			dirToOpen = s.GetProblemDir(p.Preview)
-		} else {
-			// try to parse the argument as a number
-			num, err := strconv.Atoi(args[0])
-			if err != nil {
-				return fmt.Errorf("invalid problem number: %s", args[0])
-			}
-			// get the problem slug
-			preview, err := c.GetProblemPreview(num)
-			if err != nil {
-				return fmt.Errorf("could not find problem %d: %w", num, err)
-			}
-			dirToOpen = s.GetProblemDir(preview)
+		// get the problem preview based on the provided argument (number or "daily")
+		preview, err := fetchPreviewByIdentifier(c, args[0])
+		if err != nil {
+			return err
 		}
+		dirToOpen = s.GetProblemDir(preview)
 
 		// check if the problem folder exists
-		_, err := os.Stat(dirToOpen)
+		_, err = os.Stat(dirToOpen)
 		if os.IsNotExist(err) {
 			return fmt.Errorf("problem not loaded yet, use 'leet load %s --open' instead", args[0])
 		} else if err != nil {

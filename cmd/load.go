@@ -2,11 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/cactuuus/leet/internal/language"
-	"github.com/cactuuus/leet/internal/leetcode"
-	"github.com/cactuuus/leet/internal/problem"
 	"github.com/spf13/cobra"
 )
 
@@ -66,7 +63,7 @@ func loadProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
 
 	// fetch the problem from LeetCode
 	fmt.Print("Fetching problem... ")
-	p, err := fetchByIdentifier(c, args[0])
+	p, err := fetchFullByIdentifier(c, args[0])
 	if err != nil {
 		return err
 	}
@@ -156,19 +153,6 @@ func loadProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
 	}
 	return nil
 }
-
-// fetchByIdentifier fetches a problem and its testcases given either "daily" or a numeric string.
-func fetchByIdentifier(c *leetcode.Client, id string) (problem.Full, error) {
-	if id == "daily" {
-		return c.FetchDailyProblem()
-	}
-	num, err := strconv.Atoi(id)
-	if err != nil {
-		return problem.Full{}, fmt.Errorf("invalid problem identifier: %q — use a problem number or 'daily'", id)
-	}
-	return c.FetchProblem(num)
-}
-
 
 // resolveLanguages determines which languages to scaffold based on flags and config.
 func resolveLanguages(cmd *cobra.Command, preferred []string) ([]language.Language, error) {
