@@ -1,6 +1,21 @@
 package language
 
-import "strings"
+import (
+	"embed"
+	"fmt"
+	"strings"
+)
+
+//go:embed templates/*.template
+var templates embed.FS
+
+// these markers are used to identify the boundaries for the code snippet in the template files,
+// allowing to extract the relevant code section for each language.
+// IMPORTANT: these must match the markers used in the default templates.
+const (
+	TemplateStartMarker = "@lc-start"
+	TemplateEndMarker   = "@lc-end"
+)
 
 // Language represents a programming language supported by the program, including its name, slug,
 // and file extension.
@@ -63,4 +78,15 @@ func All() []Language {
 		langs = append(langs, l)
 	}
 	return langs
+}
+
+
+// GetDefaultTemplate returns the default template content for a given language.
+func GetDefaultTemplate(l Language) (string, error) {
+	path := fmt.Sprintf("templates/%s.template", l.Slug)
+	content, err := templates.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("no default template for %s: %w", l.Slug, err)
+	}
+	return string(content), nil
 }

@@ -1,0 +1,9 @@
+import math
+from collections import *
+from typing import *
+
+# @lc-start --- ANYTHING ABOVE HERE IS IGNORED -------------------------------------------------- #
+
+{{.CodeSnippet}}
+
+# @lc-end ----- ANYTHING BELOW HERE IS IGNORED -------------------------------------------------- #

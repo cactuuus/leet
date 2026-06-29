@@ -11,16 +11,31 @@ import (
 
 // Scaffolder manages problem folders and files on disk.
 type Scaffolder struct {
-	problemsDir string
+	problemsDir  string
+	templatesDir string
 }
 
 // NewScaffolder creates and returns a new Scaffolder instance.
 // If the problems directory does not yet exist, it is created in the process, else an error is returned.
-func NewScaffolder(problemsDir string) (*Scaffolder, error) {
+func NewScaffolder(problemsDir, templatesDir string) (*Scaffolder, error) {
+	// ensure the problems and templates directories exist
 	if err := os.MkdirAll(problemsDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create problems directory: %w", err)
 	}
-	return &Scaffolder{problemsDir: problemsDir}, nil
+	if err := os.MkdirAll(templatesDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create templates directory: %w", err)
+	}
+	return &Scaffolder{problemsDir: problemsDir, templatesDir: templatesDir}, nil
+}
+
+// GetProblemsDir returns the path to the problems directory.
+func (s *Scaffolder) GetProblemsDir() string {
+	return s.problemsDir
+}
+
+// GetTemplatesDir returns the path to the templates directory.
+func (s *Scaffolder) GetTemplatesDir() string {
+	return s.templatesDir
 }
 
 // getProblemDir returns the full path to the directory for a given problem.

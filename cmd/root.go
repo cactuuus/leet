@@ -30,6 +30,7 @@ func Execute(ctx AppContext) {
 	rootCmd.AddCommand(NewLanguagesCmd(ctx))
 	rootCmd.AddCommand(NewConfigCmd(ctx))
 	rootCmd.AddCommand(NewRunCmd(ctx))
+	rootCmd.AddCommand(NewTemplateCmd(ctx))
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

@@ -1,0 +1,7 @@
+import java.util.*
+
+// @lc-start --- ANYTHING ABOVE HERE IS IGNORED ------------------------------------------------- //
+
+{{.CodeSnippet}}
+
+// @lc-end ----- ANYTHING BELOW HERE IS IGNORED ------------------------------------------------- //

@@ -17,7 +17,7 @@ import (
 var configTemplate string
 
 // Increment this when breaking changes are introduced to force an automatic file layout migration.
-const configVersion = 1
+const configVersion = 2
 
 // ConfigData represents the runtime application configuration.
 type ConfigData struct {
@@ -25,6 +25,7 @@ type ConfigData struct {
 	ProblemsDir        string           `toml:"problems_dir"`
 	PreferredLanguages []string         `toml:"preferred_languages"`
 	Editor             string           `toml:"editor_cmd"`
+	TemplatesDir       string           `toml:"templates_dir"`
 	Credentials        auth.Credentials `toml:"credentials"`
 
 	// Internal configurations not exported directly via template placeholders
@@ -120,11 +121,16 @@ func (m *Manager) String() string {
 		credStatus = "set"
 	}
 	return fmt.Sprintf(
-		"# Leet Configuration #\n"+
+		"CONFIGURATION\n"+
 		"\tProblems directory.: %s\n"+
 		"\tPreferred languages: %v\n"+
 		"\tEditor command.....: %s\n"+
+		"\tTemplates directory: %s\n"+
 		"\tCredentials........: %s",
-		m.ConfigData.ProblemsDir, m.ConfigData.PreferredLanguages, m.ConfigData.Editor, credStatus,
+		m.ConfigData.ProblemsDir,
+		m.ConfigData.PreferredLanguages,
+		m.ConfigData.Editor,
+		m.ConfigData.TemplatesDir,
+		credStatus,
 	)
 }

@@ -1,0 +1,8 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+// @lc-start --- ANYTHING ABOVE HERE IS IGNORED ------------------------------------------------- //
+
+{{.CodeSnippet}}
+
+// @lc-end ----- ANYTHING BELOW HERE IS IGNORED ------------------------------------------------- //

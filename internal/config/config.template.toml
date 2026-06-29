@@ -9,6 +9,13 @@
 problems_dir = "{{.ProblemsDir}}"
 
 
+# Where custom language templates are stored.
+# If left empty, defaults to ~/.config/leet/templates/
+# EXAMPLE: "/home/johndoe/.config/leet/templates"
+# DEFAULT: "YOUR/HOME/PATH/.config/leet/templates"
+templates_dir = "{{.TemplatesDir}}"
+
+
 # Languages to scaffold by default when 'leet load' runs without --langs.
 # Run 'leet languages' to see supported languages. This is case insensitive, and accepts both slugs and names (e.g. "Go", "go", and "golang" are all accepted).
 # Leave empty to require --langs or --desc-only on every load.
@@ -22,6 +29,7 @@ preferred_languages = {{tomlArray .PreferredLanguages}}
 # EXAMPLE: "code"
 # DEFAULT: ""
 editor_cmd = "{{.Editor}}"
+
 
 
 # Authentication credentials required for 'leet run' and 'leet submit'.

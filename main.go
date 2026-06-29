@@ -52,8 +52,9 @@ func (a *App) Config() *config.Manager {
 		PreferredLanguages: []string{},
 		Editor:             os.Getenv("EDITOR"), // try to get the editor from the environment variable, if set
 		Credentials:        auth.Credentials{},
+		BaseURL:	        "https://leetcode.com",
+		TemplatesDir:       filepath.Join(a.homeDir, ".config", "leet", "templates"),
 		CachePath:          filepath.Join(a.homeDir, ".cache", "leet", "problems.json"),
-		BaseURL:	       "https://leetcode.com",
 	}
 	cfg := config.NewManager(a.configPath, defaultCfg)
 	if err := cfg.LoadFromFile(); err != nil {
@@ -89,7 +90,7 @@ func (a *App) Scaffolder() *scaffold.Scaffolder {
 		return a.scaffolder
 	}
 	// else initialize it then return it
-	s, err := scaffold.NewScaffolder(a.Config().ProblemsDir)
+	s, err := scaffold.NewScaffolder(a.Config().ProblemsDir, a.Config().TemplatesDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: failed to initialize file scaffolder: %v\n", err)
 		os.Exit(1)
