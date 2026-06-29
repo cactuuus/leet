@@ -42,7 +42,8 @@ func (s *Scaffolder) ProblemDirExists(p problem.Preview) (bool, error) {
 	return s.FileOrDirExists(s.GetProblemDir(p))
 }
 
-// SnippetExists checks if a code snippet file exists for a given problem and language.
+// CreateProblemDir creates the directory for a given problem, including any necessary parent
+// directories.
 func (s *Scaffolder) CreateProblemDir(p problem.Preview) (bool, error) {
 	if err := os.MkdirAll(s.GetProblemDir(p), 0755); err != nil {
 		return false, fmt.Errorf("failed to create problem directory: %w", err)
