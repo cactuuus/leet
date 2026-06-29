@@ -39,10 +39,22 @@ func NewLoadCmd(ctx AppContext) *cobra.Command {
 
 func loadProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
 	// parse flags
-	noDesc,  _ := cmd.Flags().GetBool("no-desc")
-	noTests, _ := cmd.Flags().GetBool("no-tests")
-	noCode,  _ := cmd.Flags().GetBool("no-code")
-	force,   _ := cmd.Flags().GetBool("force")
+	noDesc, err := cmd.Flags().GetBool("no-desc")
+	if err != nil {
+		return fmt.Errorf("failed to parse --no-desc flag: %w", err)
+	}
+	noTests, err := cmd.Flags().GetBool("no-tests")
+	if err != nil {
+		return fmt.Errorf("failed to parse --no-tests flag: %w", err)
+	}
+	noCode, err := cmd.Flags().GetBool("no-code")
+	if err != nil {
+		return fmt.Errorf("failed to parse --no-code flag: %w", err)
+	}
+	force, err := cmd.Flags().GetBool("force")
+	if err != nil {
+		return fmt.Errorf("failed to parse --force flag: %w", err)
+	}
 
 	// check for contradictory flags
 	if noCode && cmd.Flags().Changed("langs") {
