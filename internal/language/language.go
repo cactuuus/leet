@@ -14,7 +14,7 @@ type Language struct {
 // languages by the application,  matching the languages supported by LeetCode and the slugs/names
 // used by its API.
 //
-// It should be treated as a constant map and not modified at runtime.
+// It should be treated as a constant and not be modified at runtime.
 var	known = map[string]Language{
 	"cpp": 			{Name: "C++", 			Slug: "cpp", 		Extension: ".cpp"},
 	"java": 		{Name: "Java", 			Slug: "java", 		Extension: ".java"},

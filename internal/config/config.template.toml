@@ -1,21 +1,37 @@
-# leet configuration file.
-# Edit this file directly
+# Leet configuration file.
+# If breaking changes are introduced in updates, leet will automatically update this file to the latest schema and migrate your existing configuration. This also means that comments and formatting may be lost when leet updates this file, while your configuration values will of course be preserved when possible.
+
 
 # Where problem folders get created.
 # If you change this, you will need to move your existing problems to the new location, or leet will not be able to find them.
 # EXAMPLE: "/home/johndoe/leet-problems"
 # DEFAULT: "YOUR/HOME/PATH/leet-problems"
-problems_dir = "{{.Home}}/leet-problems"
+problems_dir = "{{.ProblemsDir}}"
+
 
 # Languages to scaffold by default when 'leet load' runs without --langs.
 # Run 'leet languages' to see supported languages. This is case insensitive, and accepts both slugs and names (e.g. "Go", "go", and "golang" are all accepted).
 # Leave empty to require --langs or --desc-only on every load.
 # EXAMPLE: ["golang", "python3", "typescript"]
 # DEFAULT: []
-preferred_languages = []
+preferred_languages = {{tomlArray .PreferredLanguages}}
+
 
 # Command used to open problem folders (e.g. "code", "subl", "nvim", "idea").
 # If left empty, falls back to the $EDITOR environment variable. If that's also unset, 'leet open' and 'leet load --open' will return an error.
 # EXAMPLE: "code"
 # DEFAULT: ""
-editor_cmd = ""
+editor_cmd = "{{.Editor}}"
+
+
+# Authentication credentials required for 'leet run' and 'leet submit'.
+# Extract these from your browser's DevTools after logging in to leetcode.com:
+#   Application > Cookies > leetcode.com > LEETCODE_SESSION and csrftoken.
+# WARNING: treat these like passwords: do not share these credentials, or else someone might impersonate you.
+[credentials]
+session_token = "{{.Credentials.SessionToken}}"
+csrf_token = "{{.Credentials.CSRFToken}}"
+
+
+# Ignore this 'version' field, it is used and managed internally, based on the current version of leet.
+version = "{{.Version}}"

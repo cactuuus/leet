@@ -3,49 +3,44 @@ package leetcode
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
-)
 
-// leetcodeURL is the base URL for LeetCode's API.
-const leetcodeURL = "https://leetcode.com"
+	"github.com/cactuuus/leet/internal/auth"
+	"github.com/cactuuus/leet/internal/leetcode/cache"
+)
 
 // Client is a client for interacting with the LeetCode API.
 type Client struct {
-	cachePath 	string
 	baseURL 	string
 	httpClient 	*http.Client
+	credentials auth.Credentials
+	cache		*cache.Cache
 }
 
-// newClient creates a new LeetCode client with the provided cache path and URL.
-// Internal use only, defined here to allow testing with custom values.
-func newClient(cachePath string, baseURL string, httpClient *http.Client) (*Client, error) {
-	if err := os.MkdirAll(filepath.Dir(cachePath), 0755); err != nil {
-		return nil, fmt.Errorf("failed to create cache directory: %w", err)
-	}
+// NewClient creates a new LeetCode client with the desired configuration.
+func NewClient(
+	cachePath string,
+	baseURL string,
+	httpClient *http.Client,
+	creds auth.Credentials) (*Client, error) {
 	return &Client{
-		cachePath:   cachePath,
 		baseURL: 	 baseURL,
 		httpClient:  httpClient,
+		credentials: creds,
+		cache:   	 cache.NewCache(cachePath),
 	}, nil
 }
 
-// NewClient creates a new LeetCode client with the default cache path and URL.
-// This is the way the app is intended to be used. NewClient is instead exposed for testing purposes.
-func NewClient() (*Client, error) {
-	cachePath, err := defaultCachePath()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create default cache path: %w", err)
+// do executes the HTTP request, adding authentication headers if credentials are set.
+func(c *Client) do(req *http.Request) (*http.Response, error) {
+	if c.credentials.IsSet() {
+		req.AddCookie(&http.Cookie{Name: "LEETCODE_SESSION", Value: c.credentials.SessionToken})
+		req.AddCookie(&http.Cookie{Name: "csrftoken", Value: c.credentials.CSRFToken})
+		req.Header.Set("X-CSRFToken", c.credentials.CSRFToken)
 	}
-	return newClient(cachePath, leetcodeURL, http.DefaultClient)
+	return c.httpClient.Do(req)
 }
 
-// defaultCachePath returns the default path for the LeetCode cache file.
-// This unfortunately cannot be a constant because it depends on the user's home directory.
-func defaultCachePath() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get user home directory: %w", err)
-	}
-	return filepath.Join(homeDir, ".cache", "leet", "problems.json"), nil
+// makeProblemLink constructs the URL for a problem, using the base URL and the problem slug.
+func (c *Client) makeProblemLink(slug string) string {
+	return fmt.Sprintf("%s/problems/%s", c.baseURL, slug)
 }

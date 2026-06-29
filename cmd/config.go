@@ -1,104 +1,82 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
-	"os"
-	"strings"
 
-	"github.com/cactuuus/leet/internal/config"
 	"github.com/spf13/cobra"
 )
 
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "View or edit leet's configuration.",
-	Long: `View or edit leet's configuration.
-The config file lives at ~/.config/leet/config.toml and is meant to be edited directly — there
-are no individual 'set' commands. It's commented with what each setting does; 'leet config edit'
-opens it in your editor.`,
-	SilenceUsage: true,
-}
+func NewConfigCmd(ctx AppContext) *cobra.Command {
+	// maing config command
+	configCmd := &cobra.Command{
+		Use:   			"config",
+		Short: 			"View or edit leet's configuration.",
+		Long: 			fmt.Sprintf("View or edit leet's configuration.\nThe config file lives at %s and is meant to be edited directly. Run 'leet config edit' to open it in your editor, or 'leet config reset' to restore it to default values.", ctx.Config().Path),
+		SilenceUsage: 	true,
+	}
 
-var configShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show current configuration.",
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		cfg, err := config.Load()
-		if err != nil {
-			return err
-		}
-		fmt.Println(cfg)
-		return nil
-	},
-}
+	// subcommands
 
-var configEditCmd = &cobra.Command{
-	Use:   "edit",
-	Short: "Open the config file in your editor, for manual editing.",
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// get the path to the config file
-		path, err := config.Path()
-		if err != nil {
-			return err
-		}
-		// load the config - if it fails, it prints a warning but still attempts to open the config file in the editor, so the user can fix it manually.
-		cfg, err := config.Load()
-		if err != nil {
-			fmt.Printf("Failed to load config: %v\n", err)
-			fmt.Printf("Attempting to open the config file anyway, if this fails, you can manually edit it at '%s', or run 'leet config reset' to restore it to default values.\n", path)
-		}
-		fmt.Print("Opening in editor... ")
-		if err := openInEditor(cfg, path); err != nil {
-			return fmt.Errorf("failed to open config file in editor: %w", err)
-		}
-		fmt.Print("✓\n")
-		return nil
-	},
-}
+	configShowCmd := &cobra.Command{
+		Use:   			"show",
+		Short: 			"Print current configuration.",
+		Long: 			"Print current configuration.\nAny sensitive information, such as your LeetCode credentials, will not be printed for security reasons.",
+		SilenceUsage: 	true,
+		RunE: 			func(cmd *cobra.Command, args []string) error {
+			fmt.Println(ctx.Config().String())
+			return nil
+		},
+	}
 
-var configResetCmd = &cobra.Command{
-	Use:   "reset",
-	Short: "Reset the config file to default values. This simply deletes the config file and creates a new one with default values, hence it can be used to fix a corrupted config file.",
-	SilenceUsage: true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Println("Are you sure you want to reset the config file to default values? This action cannot be undone. [y/n]")
-		scanner := bufio.NewScanner(os.Stdin)
-		loop := true
-		for loop {
-			fmt.Print("> ")
-			if !scanner.Scan() {
-				if err := scanner.Err(); err != nil {
-					return fmt.Errorf("failed to read input: %w", err)
-				}
-				return fmt.Errorf("no input received, aborting")
+	configEditCmd := &cobra.Command{
+		Use:   			"edit",
+		Short: 			"Open the config file in your editor, for manual editing.",
+		Long:			fmt.Sprintf("Open the config file in your editor, for manual editing.\nThis uses the editor_cmd specified in your config file. You can otherwise access it directly at %s.", ctx.Config().Path),
+		SilenceUsage: 	true,
+		RunE: 			func(cmd *cobra.Command, args []string) error {
+			fmt.Print("Opening config file in editor... ")
+			cfg := ctx.Config()
+			if err := openInEditor(cfg.Editor, cfg.Path); err != nil {
+				return fmt.Errorf(
+					"failed to open config file in editor: %w\n" +
+					"Try opening it manually at %s, or run 'leet config reset' to restore it to default values.",
+					err, cfg.Path)
 			}
-			switch strings.ToLower(strings.TrimSpace(scanner.Text())) {
-			case "y", "yes":
-				// proceed with reset
-				loop = false
-			case "n", "no":
-				loop = false
+			fmt.Print("✓\n")
+			return nil
+		},
+	}
+
+	configResetCmd := &cobra.Command{
+		Use:   			"reset",
+		Short: 			"Reset the config file to default values.",
+		Long: 			"Reset the config file to default values.\nThis simply deletes the config file and creates a new one with default values, hence it can be used to fix a corrupted config file.",
+		SilenceUsage: 	true,
+		RunE: 			func(cmd *cobra.Command, args []string) error {
+			confirmed, err := promptYesNo(
+				"Are you sure you want to reset the config file to default values?" +
+				" This action cannot be undone.",
+			)
+			if err != nil {
+				return err
+			}
+			if !confirmed {
+				fmt.Println("Aborted.")
 				return nil
-			default:
-				fmt.Println("Please enter 'y' or 'n'.")
 			}
-		}
+			fmt.Print("Resetting config file to default values... ")
+			if err := ctx.Config().Reset(); err != nil {
+				return err
+			}
+			fmt.Print("✓\n")
+			return nil
+		},
+	}
 
-		fmt.Print("Resetting config file to default values... ")
-		if err := config.Reset(); err != nil {
-			return err
-		}
-		fmt.Print("✓\n")
-		return nil
-	},
-}
-
-func init() {
+	// register subcommands
 	configCmd.AddCommand(configShowCmd)
 	configCmd.AddCommand(configEditCmd)
 	configCmd.AddCommand(configResetCmd)
-	rootCmd.AddCommand(configCmd)
+
+	return configCmd
 }

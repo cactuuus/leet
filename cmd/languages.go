@@ -8,27 +8,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var languagesCmd = &cobra.Command{
-	Use:   "languages",
-	Short: "List all supported languages.",
-	SilenceUsage:  true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		langs := language.All()
-
-		// sort alphabetically by name for consistent output
-		sort.Slice(langs, func(i, j int) bool {
-			return langs[i].Name < langs[j].Name
-		})
-
-		fmt.Printf("%-15s %s\n", "NAME", "SLUG")
-		fmt.Printf("%-15s %s\n", "----", "----")
-		for _, l := range langs {
-			fmt.Printf("%-15s %s\n", l.Name, l.Slug)
-		}
-		return nil
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(languagesCmd)
+func NewLanguagesCmd(ctx AppContext) *cobra.Command {
+	return &cobra.Command{
+		Use:   			"languages",
+		Short: 			"List all supported languages.",
+		SilenceUsage:  	true,
+		RunE: 			func(cmd *cobra.Command, args []string) error {
+			langs := language.All()
+			// sort alphabetically by name for consistent output
+			sort.Slice(langs, func(i, j int) bool {
+				return langs[i].Name < langs[j].Name
+			})
+			fmt.Printf("%-15s %s\n", "NAME", "SLUG")
+			fmt.Printf("%-15s %s\n", "----", "----")
+			for _, l := range langs {
+				fmt.Printf("%-15s %s\n", l.Name, l.Slug)
+			}
+			return nil
+		},
+	}
 }

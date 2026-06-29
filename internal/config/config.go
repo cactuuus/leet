@@ -6,99 +6,125 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	"github.com/BurntSushi/toml"
+	"github.com/cactuuus/leet/internal/auth"
 )
 
 //go:embed config.template.toml
 var configTemplate string
 
-// Config represents the configuration for the leet tool.
-type Config struct {
-	ProblemsDir        string   `toml:"problems_dir"`
-	PreferredLanguages []string `toml:"preferred_languages"`
-	Editor             string   `toml:"editor_cmd"`
+// Increment this when breaking changes are introduced to force an automatic file layout migration.
+const configVersion = 1
+
+// ConfigData represents the runtime application configuration.
+type ConfigData struct {
+	Version            int              `toml:"version"`
+	ProblemsDir        string           `toml:"problems_dir"`
+	PreferredLanguages []string         `toml:"preferred_languages"`
+	Editor             string           `toml:"editor_cmd"`
+	Credentials        auth.Credentials `toml:"credentials"`
+
+	// Internal configurations not exported directly via template placeholders
+	CachePath string `toml:"-"`
+	BaseURL   string `toml:"-"`
 }
 
-// Load loads the configuration from the standard config file location.
-// If the file does not exist, it will be created with default values.
-func Load() (Config, error) {
-	path, err := Path()
-	if err != nil {
-		return Config{}, err
+// Manager orchestrates the lifecycle, state mutations, and disk storage of ConfigData.
+type Manager struct {
+	Path        string
+	defaultData ConfigData
+	ConfigData
+}
+
+// NewManager builds a new configuration manager.
+// It is initialized with the provided default configuration values. To properly load existing
+// configuration from disk, call LoadFromFile() after creating the manager.
+func NewManager(path string, defaultData ConfigData) *Manager {
+	// Version is hardcoded on the baseline defaults
+	defaultData.Version = configVersion
+	m := &Manager{Path: path, defaultData: defaultData, ConfigData: defaultData}
+	return m
+}
+
+// LoadFromFile initializes the configuration manager by loading existing data from disk.
+// If the file doesn't exist, it creates a new one with default values.
+// If the version is outdated, it updates the file to the latest version, keeping existing values
+// where possible.
+func (m *Manager) LoadFromFile() error {
+	// File doesn't exist yet -> write defaults using template
+	if _, err := os.Stat(m.Path); os.IsNotExist(err) {
+		m.ConfigData = m.defaultData
+		if err := m.Save(); err != nil {
+			return fmt.Errorf("failed to save initial default config: %w", err)
+		}
+		return nil
 	}
-	return loadFrom(path)
-}
-
-// Reset resets the configuration file to default values.
-func Reset() error {
-	path, err := Path()
-	if err != nil {
-		return err
+	// File exists -> parse it
+	if _, err := toml.DecodeFile(m.Path, &m.ConfigData); err != nil {
+		return fmt.Errorf("failed to decode config file: %w", err)
 	}
-	return resetAt(path)
-}
-
-// Path returns the standard location of the config file: ~/.config/leet/config.toml
-func Path() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	return filepath.Join(home, ".config", "leet", "config.toml"), nil
-}
-
-// String returns a human-readable summary of the configuration.
-func (c Config) String() string {
-	return fmt.Sprintf(
-		"# Leet Configuration #\n" +
-		"Problems directory.: %s\n" +
-		"Preferred languages: %v\n" +
-		"Editor command.....: %s",
-		c.ProblemsDir, c.PreferredLanguages, c.Editor,
-	)
-}
-
-// loadFrom loads the configuration from the given path.
-// If the file does not exist, it will be created with default values.
-// This function is used internally, added for ease of testing, and is not exposed to the user.
-func loadFrom(path string) (Config, error) {
-	// If the config file does not exist, create it with default values.
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err := writeDefault(path); err != nil {
-			return Config{}, err
+	// Self-healing schema check -> Outdated version found
+	if m.ConfigData.Version != configVersion {
+		m.ConfigData.Version = configVersion
+		if err := m.Save(); err != nil {
+			return fmt.Errorf("failed to automatically update config layout version: %w", err)
 		}
 	}
-	var cfg Config
-	// Decode the config file into the Config struct.
-	if _, err := toml.DecodeFile(path, &cfg); err != nil {
-		return Config{}, fmt.Errorf("failed to decode config file: %w", err)
-	}
-	return cfg, nil
+	return nil
 }
 
-// resetAt resets the configuration file at the given path to default values.
-func resetAt(path string) error {
-	return writeDefault(path)
-}
-
-// writeDefault writes the default configuration to the given path, creating any necessary directories.
-func writeDefault(path string) error {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return err
+// Save executes your text/template writer to persist changes while retaining all comments.
+func (m *Manager) Save() error {
+	// Ensure the directory exists before writing the file.
+	if err := os.MkdirAll(filepath.Dir(m.Path), 0700); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
 	}
-	tmpl, err := template.New("config").Parse(configTemplate)
+	// Convert a slice of strings into a TOML array representation.
+	funcMap := template.FuncMap{
+		"tomlArray": func(s []string) string {
+			if len(s) == 0 {
+				return "[]"
+			}
+			quoted := make([]string, len(s))
+			for i, v := range s {
+				quoted[i] = fmt.Sprintf("%q", v)
+			}
+			return "[" + strings.Join(quoted, ", ") + "]"
+		},
+	}
+	tmpl, err := template.New("config").Funcs(funcMap).Parse(configTemplate)
 	if err != nil {
 		return fmt.Errorf("failed to parse config template: %w", err)
 	}
+	// Write it to disk.
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, map[string]string{"Home": home}); err != nil {
+	if err := tmpl.Execute(&buf, m.ConfigData); err != nil {
 		return fmt.Errorf("failed to render config template: %w", err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return err
+	return os.WriteFile(m.Path, buf.Bytes(), 0600)
+}
+
+// Reset clears out custom data and forces a fallback to default values.
+func (m *Manager) Reset() error {
+	m.ConfigData = m.defaultData
+	return m.Save()
+}
+
+// String returns a safe summary of the config, redacting credentials.
+func (m *Manager) String() string {
+	credStatus := "not set"
+	if m.ConfigData.Credentials.IsSet() {
+		credStatus = "set"
 	}
-	return os.WriteFile(path, buf.Bytes(), 0644)
+	return fmt.Sprintf(
+		"# Leet Configuration #\n"+
+		"\tProblems directory.: %s\n"+
+		"\tPreferred languages: %v\n"+
+		"\tEditor command.....: %s\n"+
+		"\tCredentials........: %s",
+		m.ConfigData.ProblemsDir, m.ConfigData.PreferredLanguages, m.ConfigData.Editor, credStatus,
+	)
 }

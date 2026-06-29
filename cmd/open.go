@@ -2,74 +2,72 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 
-	"github.com/cactuuus/leet/internal/config"
-	"github.com/cactuuus/leet/internal/leetcode"
-	"github.com/cactuuus/leet/internal/scaffold"
 	"github.com/spf13/cobra"
 )
 
-var openCmd = &cobra.Command{
-	Use:   "open [number|daily]",
-	Short: "Open a problem folder or the problems directory, in your editor.",
-	Args:  cobra.MaximumNArgs(1),
-	SilenceUsage:  true,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		// load config, client and scaffolder
-		cfg, err := config.Load()
-		if err != nil {
-			return fmt.Errorf("failed to load config: %w", err)
-		}
-		scaffolder, err := scaffold.NewScaffolder(cfg.ProblemsDir)
-		if err != nil {
-			return fmt.Errorf("failed to create scaffolder: %w", err)
-		}
+func NewOpenCmd(ctx AppContext) *cobra.Command {
+	var openCmd = &cobra.Command{
+		Use:   			"open [number|daily]",
+		Short: 			"Open a problem folder, or the problems directory, in your editor.",
+		Args:  			cobra.MaximumNArgs(1),
+		SilenceUsage:  	true,
+		RunE: 			func(cmd *cobra.Command, args []string) error {
+			return openProblem(cmd, args, ctx)
+		},
+	}
 
-		// determine the directory to open, then open it in the editor
-		var dir string
-		switch {
-			case len(args) == 0: // no argument: open the root problems directory
-				dir = cfg.ProblemsDir
-			case args[0] == "daily": // if the argument is "daily", find the daily problem directory and open it
-				// create a new leetcode client to fetch the daily problem
-				c, err := leetcode.NewClient()
-				if err != nil {
-					return fmt.Errorf("failed to create leetcode client: %w", err)
-				}
-				// fetch the daily problem
-				fmt.Print("Fetching daily problem... ")
-				p, err := c.FetchDailyProblem()
-				if err != nil {
-					return fmt.Errorf("failed to fetch daily problem: %w", err)
-				}
-				fmt.Print("✓\n")
-				// update dir to the daily problem's directory
-				dir, err = scaffolder.GetProblemDirByNumber(p.Number)
-				if err != nil {
-					return fmt.Errorf("%w — run 'leet load daily --open' instead", err)
-				}
-			default: // else, the argument should be a number, in which case we just open it
-				number, err := strconv.Atoi(args[0])
-				if err != nil {
-					return fmt.Errorf("invalid problem number: %s", args[0])
-				}
-				dir, err = scaffolder.GetProblemDirByNumber(number)
-				if err != nil {
-					return fmt.Errorf("%w — run 'leet load %d --open' instead", err, number)
-				}
-		}
-
-		fmt.Print("Opening in editor... ")
-		err = openInEditor(cfg, dir)
-		if err != nil {
-			return fmt.Errorf("failed to open directory in editor: %w", err)
-		}
-		fmt.Print("✓\n")
-		return nil
-	},
+	return openCmd
 }
 
-func init() {
-	rootCmd.AddCommand(openCmd)
+func openProblem(_ *cobra.Command, args []string, ctx AppContext) error {
+	cfg := ctx.Config()
+
+	var dirToOpen string
+	// if no argument is provided, open the root problems directory
+	if len(args) == 0 {
+		dirToOpen = cfg.ProblemsDir
+	} else {
+		c, s := ctx.Client(), ctx.Scaffolder()
+
+		// fetch the daily problem
+		if args[0] == "daily" {
+			fmt.Print("Fetching daily problem... ")
+			p, err := c.FetchDailyProblem()
+			if err != nil {
+				return fmt.Errorf("failed to fetch daily problem: %w", err)
+			}
+			fmt.Print("✓\n")
+			dirToOpen = s.GetProblemDir(p.Preview)
+		} else {
+			// try to parse the argument as a number
+			num, err := strconv.Atoi(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid problem number: %s", args[0])
+			}
+			// get the problem slug
+			preview, err := c.GetProblemPreview(num)
+			if err != nil {
+				return fmt.Errorf("could not find problem %d: %w", num, err)
+			}
+			dirToOpen = s.GetProblemDir(preview)
+		}
+
+		// check if the problem folder exists
+		_, err := os.Stat(dirToOpen)
+		if os.IsNotExist(err) {
+			return fmt.Errorf("problem not loaded yet, use 'leet load %s --open' instead", args[0])
+		} else if err != nil {
+			return fmt.Errorf("failed to check if problem folder exists: %w", err)
+		}
+	}
+
+	fmt.Print("Opening in editor... ")
+	if err := openInEditor(cfg.Editor, dirToOpen); err != nil {
+		return fmt.Errorf("failed to open directory in editor: %w", err)
+	}
+	fmt.Print("✓\n")
+	return nil
 }
