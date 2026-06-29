@@ -164,15 +164,27 @@ func NewTemplateListCmd(ctx AppContext) *cobra.Command {
 		SilenceUsage: 	true,
 		RunE: 			func(cmd *cobra.Command, args []string) error {
 			s := ctx.Scaffolder()
-			fmt.Println("Custom templates:")
+			// gather languages that have custom templates
+			var customTemplates []language.Language
 			for _, l := range language.All() {
 				exists, err := s.TemplateExists(l)
 				if err != nil {
 					return err
 				}
 				if exists {
-					fmt.Printf("- %s (%s)\n", l.Name, l.Slug)
+					customTemplates = append(customTemplates, l)
 				}
+			}
+
+			if len(customTemplates) == 0 {
+				fmt.Println("No custom templates found.")
+				return nil
+			}
+
+			fmt.Println("Custom templates:")
+			// print the list of custom templates
+			for _, t := range customTemplates {
+				fmt.Printf("- %s (%s)\n", t.Name, t.Slug)
 			}
 			return nil
 		},
