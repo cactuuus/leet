@@ -29,7 +29,7 @@ func Execute(ctx AppContext) {
 	rootCmd.AddCommand(NewOpenCmd(ctx))
 	rootCmd.AddCommand(NewLanguagesCmd(ctx))
 	rootCmd.AddCommand(NewConfigCmd(ctx))
-	rootCmd.AddCommand(NewRunCmd(ctx))
+	rootCmd.AddCommand(NewTestCmd(ctx))
 	rootCmd.AddCommand(NewTemplateCmd(ctx))
 
 	if err := rootCmd.Execute(); err != nil {

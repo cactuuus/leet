@@ -12,7 +12,7 @@ const (
 	ResultCompileError  ResultCode = 20
 )
 
-// CheckResult holds the result of a run or submit operation, as returned by the poll endpoint.
+// CheckResult holds the result of a run-tests or submit operation, as returned by the poll endpoint.
 type CheckResult struct {
 	State          string   `json:"state"`             // "STARTED", "PENDING", "SUCCESS"
 	RunSuccess     bool     `json:"run_success"`

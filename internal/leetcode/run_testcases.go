@@ -14,8 +14,8 @@ const (
 	pollTimeout  = 30 * time.Second
 )
 
-// runRequest mirrors the body expected by LeetCode's interpret_solution endpoint.
-type runRequest struct {
+// runTestsRequest mirrors the body expected by LeetCode's interpret_solution endpoint.
+type runTestsRequest struct {
 	Lang       string `json:"lang"`
 	QuestionID int    `json:"question_id"`
 	TypedCode  string `json:"typed_code"`
@@ -30,14 +30,14 @@ type interpretResponse struct {
 // RunCode submits code to LeetCode's interpret endpoint and polls for the result.
 // dataInput is the test input to run against; an empty string uses LeetCode's first example.
 func (c *Client) RunCode(slug string, internalID int, langSlug, code string, tests []string) (CheckResult, error) {
-	body, err := json.Marshal(runRequest{
+	body, err := json.Marshal(runTestsRequest{
 		Lang:       langSlug,
 		QuestionID: internalID,
 		TypedCode:  code,
 		DataInput:  strings.Join(tests, "\n"),
 	})
 	if err != nil {
-		return CheckResult{}, fmt.Errorf("failed to build run request: %w", err)
+		return CheckResult{}, fmt.Errorf("failed to build run_test request: %w", err)
 	}
 
 	req, err := http.NewRequest(
@@ -46,24 +46,24 @@ func (c *Client) RunCode(slug string, internalID int, langSlug, code string, tes
 		bytes.NewReader(body),
 	)
 	if err != nil {
-		return CheckResult{}, fmt.Errorf("failed to create run request: %w", err)
+		return CheckResult{}, fmt.Errorf("failed to create run-tests request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Referer", fmt.Sprintf("%s/problems/%s/", c.baseURL, slug))
 
 	res, err := c.do(req)
 	if err != nil {
-		return CheckResult{}, fmt.Errorf("failed to send run request: %w", err)
+		return CheckResult{}, fmt.Errorf("failed to send run-tests request: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return CheckResult{}, fmt.Errorf("run request failed with status %s", res.Status)
+		return CheckResult{}, fmt.Errorf("run-tests request failed with status %s", res.Status)
 	}
 
 	var interpret interpretResponse
 	if err := json.NewDecoder(res.Body).Decode(&interpret); err != nil {
-		return CheckResult{}, fmt.Errorf("failed to parse run response: %w", err)
+		return CheckResult{}, fmt.Errorf("failed to parse run-tests response: %w", err)
 	}
 
 	return c.pollCheck(interpret.InterpretID)

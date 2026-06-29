@@ -9,25 +9,25 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func NewRunCmd(ctx AppContext) *cobra.Command {
-    runCmd := &cobra.Command{
-        Use:            "run <number|daily> <lang>",
-        Short:          "Run your solution against the example test cases.",
-        Long:           "Run your solution against the example test cases.\nThese testcases are stored in 'testcases-<number>.txt', inside of the problem folder, where each argument is separated by a newline, and each testcase is separated by a divider (---). You can manually edit this file, adding or removing testcases.",
+func NewTestCmd(ctx AppContext) *cobra.Command {
+    testCmd := &cobra.Command{
+        Use:            "test <number|daily> <lang>",
+        Short:          "Test your solution against the testcases defined for the problem.",
+        Long:           "Test your solution against the testcases defined for the problem.\nThese testcases are stored in 'testcases-<number>.txt', inside of the problem folder, where each argument is separated by a newline, and each testcase is separated by a divider ('---'). You can manually edit this file, adding or removing testcases.",
         SilenceUsage:   true,
         Args:           cobra.ExactArgs(2),
         RunE:           func(cmd *cobra.Command, args []string) error {
-            return runProblem(cmd, args, ctx)
+            return testProblem(cmd, args, ctx)
         },
     }
 
-    runCmd.Flags().BoolP("verbose", "v", false, "Show stdout from your code, and the full compile/runtime error messages if your code fails to run.")
-    runCmd.Flags().BoolP("show-all", "a", false, "Print all test cases, including passing ones.")
+    testCmd.Flags().BoolP("verbose", "v", false, "Show stdout from your code, and the full compile/runtime error messages if your code fails to run.")
+    testCmd.Flags().BoolP("show-all", "a", false, "Print all test cases, including passing ones.")
 
-    return runCmd
+    return testCmd
 }
 
-func runProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
+func testProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
     // parse flags
     verbose, err := cmd.Flags().GetBool("verbose")
     if err != nil {
@@ -61,7 +61,7 @@ func runProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
     if exists, err := s.ProblemDirExists(p); err != nil {
         return fmt.Errorf("failed to check if problem %d is scaffolded: %w", p.Number, err)
     } else if !exists {
-        return fmt.Errorf("problem %d is not scaffolded. Run 'leet load %d' first", p.Number, p.Number)
+        return fmt.Errorf("problem %d is not scaffolded — run 'leet load %d' first", p.Number, p.Number)
     }
     if exists, err := s.SnippetExists(p, lang); err != nil {
         return fmt.Errorf("failed to check if %s snippet exists for problem %d: %w", lang.Name, p.Number, err)
@@ -82,20 +82,20 @@ func runProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
         return fmt.Errorf("failed to read testcases: %w — use --input to provide test input manually", err)
     }
 
-    // run the code
-    fmt.Printf("Running problem %d (%s) in %s...", p.Number, p.Title, lang.Name)
+    // Test the code
+    fmt.Printf("Testing solution for %d (%s) in %s...", p.Number, p.Title, lang.Name)
     result, err := c.RunCode(p.Slug, p.InternalID, lang.Slug, code, tests)
     if err != nil {
-        return fmt.Errorf("failed to run solution: %w", err)
+        return fmt.Errorf("failed to test solution: %w", err)
     }
     fmt.Print("✓\n\n")
 
-    printRunResult(result, tests, verbose, showAll)
+    printTestResult(result, tests, verbose, showAll)
     return nil
 }
 
-// printRunResult displays the result of a run in a human-readable format.
-func printRunResult(r leetcode.CheckResult, inputs []string, verbose bool, showAll bool) {
+// printTestResult displays the result of a test in a human-readable format.
+func printTestResult(r leetcode.CheckResult, inputs []string, verbose bool, showAll bool) {
     // Check if the code crashed or failed to compile
     if r.StatusCode != leetcode.ResultAccepted {
         fmt.Printf("RESULT: %s\n", r.StatusMsg)
