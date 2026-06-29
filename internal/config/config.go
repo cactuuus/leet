@@ -100,9 +100,15 @@ func (m *Manager) Save() error {
 	if err != nil {
 		return fmt.Errorf("Failed to parse config template:\n%w", err)
 	}
+
+	// Normalize paths for TOML serialization (Windows backslashes break TOML parsing).
+    data := m.ConfigData
+    data.ProblemsDir = filepath.ToSlash(data.ProblemsDir)
+    data.TemplatesDir = filepath.ToSlash(data.TemplatesDir)
+
 	// Write it to disk.
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, m.ConfigData); err != nil {
+	if err := tmpl.Execute(&buf, data); err != nil {
 		return fmt.Errorf("Failed to render config template:\n%w", err)
 	}
 	return os.WriteFile(m.Path, buf.Bytes(), 0600)
