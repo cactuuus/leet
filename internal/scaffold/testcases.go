@@ -8,6 +8,7 @@ import (
 	"github.com/cactuuus/leet/internal/problem"
 )
 
+// testcasesSeparator is the string that separates individual test cases in the testcases file.
 const testcasesSeparator = "---"
 
 // GetTestcasesFilename returns the filename for the testcases file of a given problem.

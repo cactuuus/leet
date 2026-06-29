@@ -9,9 +9,6 @@ import (
 	"github.com/cactuuus/leet/internal/problem"
 )
 
-// testcasesSep is the string that separates individual test cases in the testcases file.
-const testcasesSep = "---"
-
 // Scaffolder manages problem folders and files on disk.
 type Scaffolder struct {
 	problemsDir string
