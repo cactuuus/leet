@@ -9,7 +9,7 @@ import (
 )
 
 // testcasesSeparator is the string that separates individual test cases in the testcases file.
-const testcasesSeparator = "---"
+const testcasesSeparator = "\n---\n"
 
 // GetTestcasesFilename returns the filename for the testcases file of a given problem.
 //
@@ -35,7 +35,7 @@ func (s *Scaffolder) WriteTestcases(p problem.Preview, testcases []string) error
 		return err
 	}
 	defer file.Close()
-	_, err = file.WriteString(strings.Join(testcases, "\n"+testcasesSeparator+"\n"))
+	_, err = file.WriteString(strings.Join(testcases, testcasesSeparator))
 	return err
 }
 
