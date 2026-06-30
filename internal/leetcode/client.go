@@ -44,3 +44,19 @@ func(c *Client) do(req *http.Request) (*http.Response, error) {
 func (c *Client) makeProblemLink(slug string) string {
 	return fmt.Sprintf("%s/problems/%s", c.baseURL, slug)
 }
+
+// ClearCache clears the cache in memory and saves the empty state to disk.
+func (c *Client) ClearCache() error {
+	c.cache.Clear()
+	return c.cache.Save()
+}
+
+// CacheSummary returns a summary of the cache.
+func (c *Client) CacheSummary() (string, error) {
+	return c.cache.Summary()
+}
+
+// CachePath returns the path to the cache file.
+func (c *Client) CachePath() string {
+	return c.cache.GetPath()
+}

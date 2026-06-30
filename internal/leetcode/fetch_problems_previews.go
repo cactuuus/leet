@@ -27,7 +27,7 @@ type fetchPreviewsResponse struct {
 
 // FetchPreviews fetches all problem previews from the LeetCode API and returns them as a slice of
 // problem.Preview.
-func (c *Client) FetchPreviews() ([]problem.Preview, error) {
+func (c *Client) fetchPreviews() ([]problem.Preview, error) {
 	// Create a GET request to the LeetCode API endpoint for all problems.
 	req, err := http.NewRequest(http.MethodGet, c.baseURL+"/api/problems/all/", nil)
 	if err != nil {
@@ -83,11 +83,11 @@ func levelToDifficulty(level int) string {
 func (c *Client) GetProblemPreview(number int) (problem.Preview, error) {
 	preview, ok, err := c.cache.GetPreview(number)
 	if err != nil {
-		return problem.Preview{}, fmt.Errorf("failed to get preview from cache: %w", err)
+		return problem.Preview{}, fmt.Errorf("failed to get previews from cache: %w", err)
 	}
 	if !ok {
 		// cache miss, refresh and try again
-		previews, err := c.FetchPreviews()
+		previews, err := c.fetchPreviews()
 		if err != nil {
 			return problem.Preview{}, fmt.Errorf("failed to fetch previews: %w", err)
 		}
@@ -98,7 +98,7 @@ func (c *Client) GetProblemPreview(number int) (problem.Preview, error) {
 		// if the slug is still not in the cache, it means the problem number is invalid
 		preview, ok, err = c.cache.GetPreview(number)
 		if err != nil {
-			return problem.Preview{}, fmt.Errorf("failed to get preview from cache: %w", err)
+			return problem.Preview{}, fmt.Errorf("failed to get previews from cache: %w", err)
 		}
 		if !ok {
 			return problem.Preview{}, fmt.Errorf("Problem %d doesn't exist", number)

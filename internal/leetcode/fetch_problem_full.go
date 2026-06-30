@@ -6,43 +6,43 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/cactuuus/leet/internal/problem"
 )
 
-// dailyResponse mirrors the LeetCode GraphQL response for the daily problem.
+type questionResponse struct {
+	Number           string   `json:"questionId"`
+	InternalID       string   `json:"questionFrontendId"`
+	Slug             string   `json:"titleSlug"`
+	Title            string   `json:"title"`
+	Difficulty       string   `json:"difficulty"`
+	IsPaid           bool     `json:"isPaidOnly"`
+	Content          string   `json:"content"`
+	ExampleTestcases []string `json:"exampleTestcaseList"`
+	CodeSnippets     []struct {
+		LangSlug string `json:"langSlug"`
+		Code     string `json:"code"`
+	} `json:"codeSnippets"`
+}
+
 type dailyResponse struct {
 	Data struct {
 		Daily struct {
-			Question struct {
-				Slug string `json:"titleSlug"`
-			} 				`json:"question"`
-		} 					`json:"activeDailyCodingChallengeQuestion"`
-	} 						`json:"data"`
-}
-
-// questionResponse mirrors the LeetCode GraphQL response for a single problem.
-type questionResponse struct {
-	Data struct {
-		Question struct {
-            Number       		string   	`json:"questionId"`
-            InternalID   		string   	`json:"questionFrontendId"`
-            Slug         		string   	`json:"titleSlug"`
-            Title        		string   	`json:"title"`
-            Difficulty   		string   	`json:"difficulty"`
-            IsPaid       		bool     	`json:"isPaidOnly"`
-            Content      		string   	`json:"content"`
-            ExampleTestcases 	[]string 	`json:"exampleTestcaseList"`
-			CodeSnippets 		[]struct {
-				LangSlug 		string 		`json:"langSlug"`
-				Code     		string 		`json:"code"`
-			} 								`json:"codeSnippets"`
-		} 									`json:"question"`
+			Date		string         		`json:"date"`
+			Question 	questionResponse 	`json:"question"`
+		} 									`json:"activeDailyCodingChallengeQuestion"`
 	} 										`json:"data"`
 }
 
-// fetchProblemBySlug fetches a single problem from the LeetCode GraphQL API.
-func (c *Client) fetchProblemBySlug(slug string) (problem.Full, error) {
+type problemResponse struct {
+	Data struct {
+		Question questionResponse 	`json:"question"`
+	} 								`json:"data"`
+}
+
+// fetchProblem fetches a single problem from the LeetCode GraphQL API, given its slug.
+func (c *Client) fetchProblem(slug string) (problem.Full, error) {
 	// GraphQL query to fetch a single problem by its slug.
 	query := `query($titleSlug: String!) {
 		question(titleSlug: $titleSlug) {
@@ -85,7 +85,7 @@ func (c *Client) fetchProblemBySlug(slug string) (problem.Full, error) {
 	defer res.Body.Close()
 
 	// Decode the JSON response into the questionResponse struct.
-	var data questionResponse
+	var data problemResponse
 	if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
 		return problem.Full{}, fmt.Errorf("failed to parse problem response: %w", err)
 	}
@@ -121,73 +121,138 @@ func (c *Client) fetchProblemBySlug(slug string) (problem.Full, error) {
 	}, nil
 }
 
-// FetchProblem fetches the full problem details from the LeetCode GraphQL API, using the problem
-// number.
-// It first fetches the problem preview to get the slug (likly cached), then uses that slug to fetch
-// the full problem.
-func (c *Client) FetchProblem(number int) (problem.Full, error) {
-	// Get preview first, which contains the slug needed to fetch the full problem.
-	// This might trigger a cache refresh, meaning an additional API call to fetch all previews.
-	preview, err := c.GetProblemPreview(number)
-	if err != nil {
-		return problem.Full{}, fmt.Errorf("failed to get problem preview: %w", err)
-	}
-
-	// Fetch the full problem details using the slug from the preview.
-	full, err := c.fetchProblemBySlug(preview.Slug)
-	if err != nil {
-		return problem.Full{}, fmt.Errorf("failed to fetch problem: %w", err)
-	}
-	// TODO: a user using credentials might be able to fetch a problem that is behind a paywall. We
-	// should check if the user has access to the problem and return an error if not.
-	if full.IsPaid {
-		return problem.Full{}, fmt.Errorf("problem %d requires a LeetCode premium subscription", number)
-	}
-	return full, nil
-}
-
-
-// FetchDailyProblem fetches today's daily challenge from the LeetCode GraphQL API.
-// It first fetches the daily problem's slug, then uses that slug to fetch the full problem.
-func (c *Client) FetchDailyProblem() (problem.Full, error) {
-	// GraphQL query to fetch the daily problem's slug.
+// fetchDailyProblem fetches today's daily challenge from the LeetCode GraphQL API, along with its
+// expiration timestamp.
+func (c *Client) fetchDailyProblem() (problem.Full, int64, error) {
+	// GraphQL query fetching the complete problem dataset directly from the daily challenge node.
 	query := `query {
 		activeDailyCodingChallengeQuestion {
+			date
 			question {
+				questionId
+				questionFrontendId
+				title
 				titleSlug
+				difficulty
+				isPaidOnly
+				content
+				exampleTestcaseList
+				codeSnippets {
+					langSlug
+					code
+				}
 			}
 		}
 	}`
-
 	// Prepare the request body with the query.
 	body, err := json.Marshal(map[string]any{"query": query})
 	if err != nil {
-		return problem.Full{}, fmt.Errorf("failed to build daily problem request: %w", err)
+		return problem.Full{}, 0, fmt.Errorf("failed to build daily problem request: %w", err)
 	}
 
 	// Create a POST request to the LeetCode GraphQL endpoint.
 	req, err := http.NewRequest(http.MethodPost, c.baseURL+"/graphql", bytes.NewReader(body))
 	if err != nil {
-		return problem.Full{}, fmt.Errorf("failed to create daily problem request: %w", err)
+		return problem.Full{}, 0, fmt.Errorf("failed to create daily problem request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+
 	// Execute the request.
 	res, err := c.do(req)
 	if err != nil {
-		return problem.Full{}, fmt.Errorf("failed to fetch daily problem: %w", err)
+		return problem.Full{}, 0, fmt.Errorf("failed to fetch daily problem: %w", err)
 	}
 	defer res.Body.Close()
 
-	// Decode the JSON response into the dailyResponse struct.
+	// Decode the JSON response into our updated dailyResponse struct.
 	var data dailyResponse
 	if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
-		return problem.Full{}, fmt.Errorf("failed to parse daily problem response: %w", err)
+		return problem.Full{}, 0, fmt.Errorf("failed to parse daily problem response: %w", err)
 	}
 
-	// Extract the slug from the response and fetch the full problem using that slug.
-	slug := data.Data.Daily.Question.Slug
-	if slug == "" {
-		return problem.Full{}, fmt.Errorf("failed to retrieve daily problem slug")
+	q := data.Data.Daily.Question
+	// Parse IDs from strings to integers
+	internalID, err := strconv.Atoi(q.Number)
+	if err != nil {
+		return problem.Full{}, 0, fmt.Errorf("invalid internal question ID: %w", err)
 	}
-	return c.fetchProblemBySlug(slug)
+	number, err := strconv.Atoi(q.InternalID)
+	if err != nil {
+		return problem.Full{}, 0, fmt.Errorf("invalid frontend question ID: %w", err)
+	}
+
+	// Map snippets slice to lookup map
+	snippets := make(map[string]string, len(q.CodeSnippets))
+	for _, s := range q.CodeSnippets {
+		snippets[s.LangSlug] = s.Code
+	}
+
+	// Calculate the expiration timestamp for the daily problem.
+	// We use the date provided in the response to avoid timezone issues.
+	// Parse it as a UTC date
+	parsedDate, err := time.ParseInLocation("2006-01-02", data.Data.Daily.Date, time.UTC)
+	if err != nil {
+		return problem.Full{}, 0, fmt.Errorf("failed to parse daily problem date: %w", err)
+	}
+	// Set expiration to the exact end of that UTC day (23:59:59)
+	validUntil := parsedDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second).Unix()
+
+	return problem.Full{
+		Preview: problem.Preview{
+			InternalID: internalID,
+			Number:     number,
+			Slug:       q.Slug,
+			Title:      q.Title,
+			Difficulty: q.Difficulty,
+			IsPaid:     q.IsPaid,
+			Link:       c.makeProblemLink(q.Slug),
+		},
+		Content:          q.Content,
+		Snippets:         snippets,
+		ExampleTestcases: q.ExampleTestcases,
+	}, validUntil, nil
+}
+
+func (c *Client) GetDailyProblem() (problem.Full, error) {
+	// Check if the daily problem is cached.
+	daily, ok, err := c.cache.GetDaily()
+	if err != nil {
+		return problem.Full{}, fmt.Errorf("failed to get daily problem from cache: %w", err)
+	}
+	if !ok {
+		// cache miss, refresh and try again
+		daily, validUntil, err := c.fetchDailyProblem()
+		if err != nil {
+			return problem.Full{}, fmt.Errorf("failed to fetch daily problem: %w", err)
+		}
+		// Update the cache with the new daily problem number and its expiration time.
+		if err := c.cache.UpdateDaily(daily, validUntil); err != nil {
+			return problem.Full{}, fmt.Errorf("failed to update daily problem in cache: %w", err)
+		}
+	}
+	return daily, nil
+}
+
+func (c *Client) GetProblemFull(number int) (problem.Full, error) {
+	// Check if the full problem is cached.
+	full, ok, err := c.cache.GetFull(number)
+	if err != nil {
+		return problem.Full{}, fmt.Errorf("failed to get full problem from cache: %w", err)
+	}
+	if !ok {
+		// cache miss, fetch from API and update cache
+		preview, err := c.GetProblemPreview(number)
+		if err != nil {
+			return problem.Full{}, fmt.Errorf("failed to get problem preview: %w", err)
+		}
+		// Fetch the full problem details using the slug from the preview.
+		full, err = c.fetchProblem(preview.Slug)
+		if err != nil {
+			return problem.Full{}, fmt.Errorf("failed to fetch problem: %w", err)
+		}
+		if err := c.cache.UpdateFull(full); err != nil {
+			return problem.Full{}, fmt.Errorf("failed to update full problem in cache: %w", err)
+		}
+	}
+	return full, nil
 }

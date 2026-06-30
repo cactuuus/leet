@@ -51,34 +51,33 @@ func openInEditor(editorCmd string, path string) error {
 // fetchPreviewByIdentifier fetches a problem preview given either "daily" or a numeric string.
 func fetchPreviewByIdentifier(c *leetcode.Client, id string) (problem.Preview, error) {
 	if id == "daily" {
-		p, err := c.FetchDailyProblem()
+		p, err := c.GetDailyProblem()
 		if err != nil {
 			return problem.Preview{}, fmt.Errorf("failed to fetch daily problem: %w", err)
 		}
 		return p.Preview, nil
-	} else {
-		// try to parse the argument as a number
-		num, err := strconv.Atoi(id)
-		if err != nil {
-			return problem.Preview{}, fmt.Errorf("invalid problem number: %s", id)
-		}
-		// get the problem slug
-		preview, err := c.GetProblemPreview(num)
-		if err != nil {
-			return problem.Preview{}, fmt.Errorf("could not find problem %d: %w", num, err)
-		}
-		return preview, nil
 	}
+	// else try to parse the argument as a number
+	num, err := strconv.Atoi(id)
+	if err != nil {
+		return problem.Preview{}, fmt.Errorf("invalid problem number: %s", id)
+	}
+	// get the problem slug
+	preview, err := c.GetProblemPreview(num)
+	if err != nil {
+		return problem.Preview{}, fmt.Errorf("could not find problem %d: %w", num, err)
+	}
+	return preview, nil
 }
 
 // fetchFullByIdentifier fetches a problem (full) given either "daily" or a numeric string.
 func fetchFullByIdentifier(c *leetcode.Client, id string) (problem.Full, error) {
 	if id == "daily" {
-		return c.FetchDailyProblem()
+		return c.GetDailyProblem()
 	}
 	num, err := strconv.Atoi(id)
 	if err != nil {
 		return problem.Full{}, fmt.Errorf("invalid problem identifier: %q — use a problem number or 'daily'", id)
 	}
-	return c.FetchProblem(num)
+	return c.GetProblemFull(num)
 }
