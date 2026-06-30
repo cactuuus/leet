@@ -6,12 +6,9 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
-)
 
-const (
-	pollInterval = time.Second
-	pollTimeout  = 30 * time.Second
+	"github.com/cactuuus/leet/internal/language"
+	"github.com/cactuuus/leet/internal/problem"
 )
 
 // runTestsRequest mirrors the body expected by LeetCode's interpret_solution endpoint.
@@ -22,83 +19,54 @@ type runTestsRequest struct {
 	DataInput  string `json:"data_input"`
 }
 
-// interpretResponse mirrors the response from LeetCode's interpret_solution endpoint.
-type interpretResponse struct {
+// runTestsResponse mirrors the response from LeetCode's interpret_solution endpoint.
+type runTestsResponse struct {
 	InterpretID string `json:"interpret_id"`
 }
 
 // RunCode submits code to LeetCode's interpret endpoint and polls for the result.
 // dataInput is the test input to run against; an empty string uses LeetCode's first example.
-func (c *Client) RunCode(slug string, internalID int, langSlug, code string, tests []string) (CheckResult, error) {
+func (c *Client) RunCode(p problem.Preview, l language.Language, code string, tests []string) (RunCheckResult, error) {
 	body, err := json.Marshal(runTestsRequest{
-		Lang:       langSlug,
-		QuestionID: internalID,
+		Lang:       l.Slug,
+		QuestionID: p.InternalID,
 		TypedCode:  code,
 		DataInput:  strings.Join(tests, "\n"),
 	})
 	if err != nil {
-		return CheckResult{}, fmt.Errorf("failed to build run_test request: %w", err)
+		return RunCheckResult{}, fmt.Errorf("failed to build run-test request: %w", err)
 	}
 
 	req, err := http.NewRequest(
 		http.MethodPost,
-		fmt.Sprintf("%s/problems/%s/interpret_solution/", c.baseURL, slug),
+		fmt.Sprintf("%s/problems/%s/interpret_solution/", c.baseURL, p.Slug),
 		bytes.NewReader(body),
 	)
 	if err != nil {
-		return CheckResult{}, fmt.Errorf("failed to create run-tests request: %w", err)
+		return RunCheckResult{}, fmt.Errorf("failed to create run-tests request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Referer", fmt.Sprintf("%s/problems/%s/", c.baseURL, slug))
+	req.Header.Set("Referer", fmt.Sprintf("%s/problems/%s/", c.baseURL, p.Slug))
 
 	res, err := c.do(req)
 	if err != nil {
-		return CheckResult{}, fmt.Errorf("failed to send run-tests request: %w", err)
+		return RunCheckResult{}, fmt.Errorf("failed to send run-tests request: %w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return CheckResult{}, fmt.Errorf("run-tests request failed with status %s", res.Status)
+		return RunCheckResult{}, fmt.Errorf("run-tests request failed with status %s", res.Status)
 	}
 
-	var interpret interpretResponse
-	if err := json.NewDecoder(res.Body).Decode(&interpret); err != nil {
-		return CheckResult{}, fmt.Errorf("failed to parse run-tests response: %w", err)
+	var runTestsRes runTestsResponse
+	if err := json.NewDecoder(res.Body).Decode(&runTestsRes); err != nil {
+		return RunCheckResult{}, fmt.Errorf("failed to parse run-tests response: %w", err)
 	}
 
-	return c.pollCheck(interpret.InterpretID)
-}
-
-// pollCheck polls the check endpoint until the result is ready or the timeout is reached.
-func (c *Client) pollCheck(id string) (CheckResult, error) {
-	deadline := time.Now().Add(pollTimeout)
-	for time.Now().Before(deadline) {
-		req, err := http.NewRequest(
-			http.MethodGet,
-			fmt.Sprintf("%s/submissions/detail/%s/check/", c.baseURL, id),
-			nil,
-		)
-		if err != nil {
-			return CheckResult{}, fmt.Errorf("failed to create poll request: %w", err)
-		}
-
-		res, err := c.do(req)
-		if err != nil {
-			return CheckResult{}, fmt.Errorf("failed to poll result: %w", err)
-		}
-
-		var result CheckResult
-		err = json.NewDecoder(res.Body).Decode(&result)
-		res.Body.Close()
-		if err != nil {
-			return CheckResult{}, fmt.Errorf("failed to parse poll response: %w", err)
-		}
-
-		if result.State != "STARTED" && result.State != "PENDING" {
-			return result, nil
-		}
-
-		time.Sleep(pollInterval)
+	var result RunCheckResult
+	if err := c.pollCheck(runTestsRes.InterpretID, &result); err != nil {
+		return RunCheckResult{}, fmt.Errorf("failed to poll run-tests result: %w", err)
 	}
-	return CheckResult{}, fmt.Errorf("timed out waiting for result after %s", pollTimeout)
+
+	return result, nil
 }

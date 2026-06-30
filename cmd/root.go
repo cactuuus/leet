@@ -31,6 +31,7 @@ func Execute(ctx AppContext) {
 	rootCmd.AddCommand(NewConfigCmd(ctx))
 	rootCmd.AddCommand(NewTestCmd(ctx))
 	rootCmd.AddCommand(NewTemplateCmd(ctx))
+	rootCmd.AddCommand(NewSubmitCmd(ctx))
 
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)

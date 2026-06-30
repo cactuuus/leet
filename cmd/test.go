@@ -84,7 +84,7 @@ func testProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
 
     // Test the code
     fmt.Printf("Testing solution for %d (%s) in %s...", p.Number, p.Title, lang.Name)
-    result, err := c.RunCode(p.Slug, p.InternalID, lang.Slug, code, tests)
+    result, err := c.RunCode(p, lang, code, tests)
     if err != nil {
         return fmt.Errorf("failed to test solution: %w", err)
     }
@@ -95,7 +95,7 @@ func testProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
 }
 
 // printTestResult displays the result of a test in a human-readable format.
-func printTestResult(r leetcode.CheckResult, inputs []string, verbose bool, showAll bool) {
+func printTestResult(r leetcode.RunCheckResult, inputs []string, verbose bool, showAll bool) {
     // Check if the code crashed or failed to compile
     if r.StatusCode != leetcode.ResultAccepted {
         fmt.Printf("RESULT: %s\n", r.StatusMsg)
@@ -106,6 +106,12 @@ func printTestResult(r leetcode.CheckResult, inputs []string, verbose bool, show
             fmt.Println(r.RuntimeError)
         }
         return
+    }
+
+    if r.CorrectAnswer {
+        fmt.Print("RESULT: ✓ All testcases passed\n\n")
+    } else {
+        fmt.Print("RESULT: ❌Some testcases failed\n\n")
     }
 
     // Print the results of each testcase
@@ -141,8 +147,8 @@ func printTestResult(r leetcode.CheckResult, inputs []string, verbose bool, show
         }
         fmt.Println()
     }
-    fmt.Print("RESULT\n")
-    fmt.Printf("  Testcases Passed.: %d/%d\n", passedCount, total)
-    fmt.Printf("  Runtime..........: %s\n", r.StatusRuntime)
-    fmt.Printf("  Memory...........: %s\n", r.StatusMemory)
+
+    fmt.Printf("Testcases Passed.: %d/%d\n", passedCount, total)
+    fmt.Printf("Runtime..........: %s\n", r.StatusRuntime)
+    fmt.Printf("Memory...........: %s\n", r.StatusMemory)
 }
