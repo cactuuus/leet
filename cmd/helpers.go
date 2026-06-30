@@ -118,12 +118,12 @@ func fetchFullByIdentifier(c *leetcode.Client, id string) (problem.Full, error) 
 
 // printActionStart prints a message indicating the start of an action.
 func printActionStart(action string) {
-	fmt.Printf("%s... ", action)
+	fmt.Printf("%s...", action)
 }
 
 // printActionSuccess prints a checkmark indicating the successful completion of an action.
 func printActionSuccess() {
-	fmt.Println("✓")
+	fmt.Println(" ✓")
 }
 
 // parseLanguage parses a language identifier and returns the corresponding Language object, else

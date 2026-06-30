@@ -74,7 +74,7 @@ func submitProblem(_ *cobra.Command, args []string, ctx AppContext) error {
 	}
 
 	// Submit to LeetCode
-	submitMsg := fmt.Sprintf("Submitting solution for %d (%s) in %s...", p.Number, p.Title, l.Name)
+	submitMsg := fmt.Sprintf("Submitting solution for %d (%s) in %s", p.Number, p.Title, l.Name)
 	printActionStart(submitMsg)
 	result, err := c.SubmitSolution(p, l, code)
 	if err != nil {
@@ -82,6 +82,7 @@ func submitProblem(_ *cobra.Command, args []string, ctx AppContext) error {
 	}
 	printActionSuccess()
 
+	fmt.Println()
 	printSubmitResult(result)
 
 	// If the submission failed due to a failing testcase, offer to add it to the local testcases file

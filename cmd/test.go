@@ -109,7 +109,7 @@ func testProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
     }
 
     // Test the code
-    testMsg := fmt.Sprintf("Testing solution for %d (%s) in %s...", p.Number, p.Title, l.Name)
+    testMsg := fmt.Sprintf("Testing solution for %d (%s) in %s", p.Number, p.Title, l.Name)
     printActionStart(testMsg)
     result, err := c.RunCode(p, l, code, tests)
     if err != nil {
@@ -117,6 +117,7 @@ func testProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
     }
     printActionSuccess()
 
+	fmt.Println()
     printTestResult(result, tests, flags[verboseFlag], flags[showAllFlag])
     return nil
 }
