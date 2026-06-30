@@ -51,7 +51,7 @@ func (s *Scaffolder) WriteCustomTemplate(l language.Language) error {
 	// create the new custom template
 	file, err := os.Create(s.GetTemplatePath(l))
 	if err != nil {
-		return fmt.Errorf("failed to create custom template for %s: %w", l.Name, err)
+		return fmt.Errorf("Failed to create custom template for %s:\n%w", l.Name, err)
 	}
 	defer file.Close()
 	_, err = file.WriteString(content)
@@ -81,17 +81,17 @@ func (s *Scaffolder) parseTemplate(p problem.Full, l language.Language) (string,
 	// get the code snippet
 	snippet, ok := p.Snippets[l.Slug]
 	if !ok {
-		return "", fmt.Errorf("no snippet found for language %s", l.Name)
+		return "", fmt.Errorf("No snippet found for language %s", l.Name)
 	}
 	// parse the template and execute it with the code snippet
 	tmpl, err := template.New("snippet").Parse(tmplContent)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse template for language %s: %w", l.Name, err)
+		return "", fmt.Errorf("Failed to parse template for language %s:\n%w", l.Name, err)
 	}
 	var buf bytes.Buffer
 	data := struct { CodeSnippet string }{ CodeSnippet: snippet }
 	if err = tmpl.Execute(&buf, data); err != nil {
-		return "", fmt.Errorf("failed to execute template for language %s: %w", l.Name, err)
+		return "", fmt.Errorf("Failed to execute template for language %s:\n%w", l.Name, err)
 	}
 	return buf.String(), nil
 }

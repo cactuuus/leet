@@ -97,24 +97,24 @@ func (s ResultCode) String() string {
 func (c *Client) pollCheck(id string, target pollableResult) error {
 	deadline := time.Now().Add(pollTimeout)
 	for time.Now().Before(deadline) {
-		req, err := http.NewRequest(
-			http.MethodGet,
-			fmt.Sprintf("%s/submissions/detail/%s/check/", c.baseURL, id),
-			nil,
-		)
+		endpoint, err := c.makeURL("submissions", "detail", id, "check")
 		if err != nil {
-			return fmt.Errorf("failed to create poll request: %w", err)
+			return fmt.Errorf("Failed to build request URL for poll-check:\n%w", err)
+		}
+		req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+		if err != nil {
+			return fmt.Errorf("Failed to create poll request:\n%w", err)
 		}
 
-		res, err := c.do(req)
+		res, err := c.do(req, c.baseURL)
 		if err != nil {
-			return fmt.Errorf("failed to poll result: %w", err)
+			return fmt.Errorf("Failed to poll result:\n%w", err)
 		}
 
 		err = json.NewDecoder(res.Body).Decode(&target)
 		res.Body.Close()
 		if err != nil {
-			return fmt.Errorf("failed to parse poll response: %w", err)
+			return fmt.Errorf("Failed to parse poll response:\n%w", err)
 		}
 
 		if target.GetState() != StateStarted && target.GetState() != StatePending {
@@ -123,5 +123,5 @@ func (c *Client) pollCheck(id string, target pollableResult) error {
 
 		time.Sleep(pollInterval)
 	}
-	return fmt.Errorf("timed out waiting for result after %s", pollTimeout)
+	return fmt.Errorf("Timed out waiting for result after %s seconds.", pollTimeout)
 }

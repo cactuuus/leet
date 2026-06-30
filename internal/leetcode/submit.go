@@ -31,38 +31,34 @@ func (c *Client) SubmitSolution(p problem.Preview, l language.Language, code str
 		TypedCode:  code,
 	})
 	if err != nil {
-		return SubmitCheckResult{}, fmt.Errorf("failed to build submit-solution request: %w", err)
+		return SubmitCheckResult{}, fmt.Errorf("Failed to build submit-solution request:\n%w", err)
 	}
 
-	req, err := http.NewRequest(
-		http.MethodPost,
-		fmt.Sprintf("%s/problems/%s/submit/", c.baseURL, p.Slug),
-		bytes.NewReader(body),
-	)
+	endpoint, err := c.makeURL("problems", p.Slug, "submit")
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
-		return SubmitCheckResult{}, fmt.Errorf("failed to create submit-solution request: %w", err)
+		return SubmitCheckResult{}, fmt.Errorf("Failed to create submit-solution request:\n%w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Referer", fmt.Sprintf("%s/problems/%s/", c.baseURL, p.Slug))
 
-	res, err := c.do(req)
+	res, err := c.do(req, p.Link)
 	if err != nil {
-		return SubmitCheckResult{}, fmt.Errorf("failed to send submit-solution request: %w", err)
+		return SubmitCheckResult{}, fmt.Errorf("Failed to send submit-solution request:\n%w", err)
 	}
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
-		return SubmitCheckResult{}, fmt.Errorf("submit-solution request failed with status %s", res.Status)
+		return SubmitCheckResult{}, fmt.Errorf("Submit-solution request failed with status %s", res.Status)
 	}
 
 	var submitRes submitResponse
 	if err = json.NewDecoder(res.Body).Decode(&submitRes); err != nil {
-		return SubmitCheckResult{}, fmt.Errorf("failed to parse submit-solution response: %w", err)
+		return SubmitCheckResult{}, fmt.Errorf("Failed to parse submit-solution response:\n%w", err)
 	}
 
 	var result SubmitCheckResult
 	if err := c.pollCheck(strconv.Itoa(submitRes.SubmissionID), &result); err != nil {
-		return SubmitCheckResult{}, fmt.Errorf("failed to poll submit-solution result: %w", err)
+		return SubmitCheckResult{}, fmt.Errorf("Failed to poll submit-solution result:\n%w", err)
 	}
 
 	return result, nil

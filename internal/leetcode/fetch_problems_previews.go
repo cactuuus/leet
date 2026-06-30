@@ -29,27 +29,35 @@ type fetchPreviewsResponse struct {
 // problem.Preview.
 func (c *Client) fetchPreviews() ([]problem.Preview, error) {
 	// Create a GET request to the LeetCode API endpoint for all problems.
-	req, err := http.NewRequest(http.MethodGet, c.baseURL+"/api/problems/all/", nil)
+	endpoint, err := c.makeURL("api", "problems", "all")
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request for all problems: %w", err)
+		return nil, fmt.Errorf("Failed to build request URL for fetch-previews:\n%w", err)
+	}
+	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create request for fetch-previews:\n%w", err)
 	}
 
 	// Execute the request.
-	res, err := c.do(req)
+	res, err := c.do(req, c.baseURL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch problems: %w", err)
+		return nil, fmt.Errorf("Failed to fetch problems:\n%w", err)
 	}
 	defer res.Body.Close()
 
 	// Decode the JSON response into the fetchPreviewsResponse struct.
 	var data fetchPreviewsResponse
 	if err := json.NewDecoder(res.Body).Decode(&data); err != nil {
-		return nil, fmt.Errorf("failed to parse problems response: %w", err)
+		return nil, fmt.Errorf("Failed to parse problems response:\n%w", err)
 	}
 
 	// Convert the response data into a slice of problem.Preview.
 	var previews []problem.Preview
 	for _, pair := range data.StatStatusPairs {
+		link, err := c.makeProblemLink(pair.Stat.Slug)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to build problem link for %s:\n%w", pair.Stat.Slug, err)
+		}
 		previews = append(previews, problem.Preview{
 			Number:     pair.Stat.Number,
 			InternalID: pair.Stat.InternalID,
@@ -57,7 +65,7 @@ func (c *Client) fetchPreviews() ([]problem.Preview, error) {
 			Title:      pair.Stat.Title,
 			Difficulty: levelToDifficulty(pair.Difficulty.Level),
 			IsPaid:     pair.IsPaid,
-			Link:       c.makeProblemLink(pair.Stat.Slug),
+			Link:       link,
 		})
 	}
 	return previews, nil
@@ -77,28 +85,27 @@ func levelToDifficulty(level int) string {
 	}
 }
 
-
 // GetProblemPreview returns the preview for a given problem number.
 // If the preview is not in the cache, it refreshes the cache and tries once again.
 func (c *Client) GetProblemPreview(number int) (problem.Preview, error) {
 	preview, ok, err := c.cache.GetPreview(number)
 	if err != nil {
-		return problem.Preview{}, fmt.Errorf("failed to get previews from cache: %w", err)
+		return problem.Preview{}, fmt.Errorf("Failed to get previews from cache:\n%w", err)
 	}
 	if !ok {
 		// cache miss, refresh and try again
 		previews, err := c.fetchPreviews()
 		if err != nil {
-			return problem.Preview{}, fmt.Errorf("failed to fetch previews: %w", err)
+			return problem.Preview{}, fmt.Errorf("Failed to fetch previews:\n%w", err)
 		}
 		c.cache.UpdatePreviews(previews...)
 		if err := c.cache.Save(); err != nil {
-			return problem.Preview{}, fmt.Errorf("failed to save cache: %w", err)
+			return problem.Preview{}, fmt.Errorf("Failed to save cache:\n%w", err)
 		}
 		// if the slug is still not in the cache, it means the problem number is invalid
 		preview, ok, err = c.cache.GetPreview(number)
 		if err != nil {
-			return problem.Preview{}, fmt.Errorf("failed to get previews from cache: %w", err)
+			return problem.Preview{}, fmt.Errorf("Failed to get previews from cache:\n%w", err)
 		}
 		if !ok {
 			return problem.Preview{}, fmt.Errorf("Problem %d doesn't exist", number)

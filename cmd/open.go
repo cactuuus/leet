@@ -9,11 +9,10 @@ import (
 
 func NewOpenCmd(ctx AppContext) *cobra.Command {
 	var openCmd = &cobra.Command{
-		Use:   			"open [number|daily]",
-		Short: 			"Open a problem folder, or the problems directory, in your editor.",
-		Args:  			cobra.MaximumNArgs(1),
-		SilenceUsage:  	true,
-		RunE: 			func(cmd *cobra.Command, args []string) error {
+		Use:   	"open [number|daily]",
+		Short:	"Open a problem folder, or the problems directory, in your editor.",
+		Args:	cobra.MaximumNArgs(1),
+		RunE: 	func(cmd *cobra.Command, args []string) error {
 			return openProblem(cmd, args, ctx)
 		},
 	}
@@ -23,14 +22,17 @@ func NewOpenCmd(ctx AppContext) *cobra.Command {
 
 func openProblem(_ *cobra.Command, args []string, ctx AppContext) error {
 	cfg := ctx.Config()
-
-	var dirToOpen string
-	// if no argument is provided, open the root problems directory
-	if len(args) == 0 {
-		dirToOpen = cfg.ProblemsDir
-	} else {
-		c, s := ctx.Client(), ctx.Scaffolder()
-		// get the problem preview based on the provided argument (number or "daily")
+	dirToOpen := cfg.ProblemsDir
+	// parse the optional argument to determine which directory to open
+	if len(args) > 0 {
+		c, err := ctx.Client()
+		if err != nil {
+			return err
+		}
+		s, err := ctx.Scaffolder()
+		if err != nil {
+			return err
+		}
 		preview, err := fetchPreviewByIdentifier(c, args[0])
 		if err != nil {
 			return err
@@ -40,16 +42,11 @@ func openProblem(_ *cobra.Command, args []string, ctx AppContext) error {
 		// check if the problem folder exists
 		_, err = os.Stat(dirToOpen)
 		if os.IsNotExist(err) {
-			return fmt.Errorf("problem not loaded yet, use 'leet load %s --open' instead", args[0])
+			return fmt.Errorf("Problem not loaded yet, use 'leet load %s --open' instead", args[0])
 		} else if err != nil {
-			return fmt.Errorf("failed to check if problem folder exists: %w", err)
+			return fmt.Errorf("Failed to check if problem folder exists:\n%w", err)
 		}
 	}
 
-	fmt.Print("Opening in editor... ")
-	if err := openInEditor(cfg.Editor, dirToOpen); err != nil {
-		return fmt.Errorf("failed to open directory in editor: %w", err)
-	}
-	fmt.Print("✓\n")
-	return nil
+	return openInEditor(cfg.Editor, dirToOpen)
 }

@@ -10,10 +10,9 @@ import (
 
 func NewLanguagesCmd(ctx AppContext) *cobra.Command {
 	return &cobra.Command{
-		Use:   			"languages",
-		Short: 			"List all supported languages.",
-		SilenceUsage:  	true,
-		RunE: 			func(cmd *cobra.Command, args []string) error {
+		Use:   	"languages",
+		Short:	"List all supported languages.",
+		RunE: 	func(cmd *cobra.Command, args []string) error {
 			langs := language.All()
 			// sort alphabetically by name for consistent output
 			sort.Slice(langs, func(i, j int) bool {

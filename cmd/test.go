@@ -4,53 +4,78 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cactuuus/leet/internal/language"
 	"github.com/cactuuus/leet/internal/leetcode"
 	"github.com/spf13/cobra"
 )
 
+type testCmdBoolFlag int
+const (
+    verboseFlag testCmdBoolFlag = iota
+    showAllFlag
+)
+
+var testCmdBoolFlags = map[testCmdBoolFlag]cmdBoolFlags {
+    verboseFlag: {Long: "verbose", Short: "v", Value: false, Desc: "Show stdout from your code."},
+    showAllFlag: {Long: "all-tests", Short: "a", Value: false, Desc: "Print all test cases, including passing ones."},
+}
+
 func NewTestCmd(ctx AppContext) *cobra.Command {
     testCmd := &cobra.Command{
-        Use:            "test <number|daily> <lang>",
-        Short:          "Test your solution against the testcases defined for the problem.",
-        Long:           "Test your solution against the testcases defined for the problem.\nThese testcases are stored in 'testcases-<number>.txt', inside of the problem folder, where each argument is separated by a newline, and each testcase is separated by a divider ('---'). You can manually edit this file, adding or removing testcases.",
-        SilenceUsage:   true,
-        Args:           cobra.ExactArgs(2),
-        RunE:           func(cmd *cobra.Command, args []string) error {
+        Use:    "test <number|daily> <lang>",
+        Short:  "Test your solution against the testcases defined for the problem.",
+        Long:   "Test your solution against the testcases defined for the problem.\n" +
+                "These testcases are stored in 'testcases-<number>.txt' (inside the problem " +
+                "folder), where each argument is separated by a newline, and each testcase is " +
+                "separated by a divider ('---'). You can manually edit this file, adding or " +
+                "removing testcases.\n Only the failing testcases will be printed by default, " +
+                "but you can use the --all-tests flag to print passing ones too.",
+        Args:   cobra.ExactArgs(2),
+        RunE:   func(cmd *cobra.Command, args []string) error {
             return testProblem(cmd, args, ctx)
         },
     }
 
-    testCmd.Flags().BoolP("verbose", "v", false, "Show stdout from your code, and the full compile/runtime error messages if your code fails to run.")
-    testCmd.Flags().BoolP("show-all", "a", false, "Print all test cases, including passing ones.")
-
+    // define flags
+    for _, flag := range testCmdBoolFlags {
+        testCmd.Flags().BoolP(flag.Long, flag.Short, flag.Value, flag.Desc)
+    }
     return testCmd
 }
 
 func testProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
     // parse flags
-    verbose, err := cmd.Flags().GetBool("verbose")
-    if err != nil {
-        return fmt.Errorf("failed to parse --verbose flag: %w", err)
-    }
-    showAll, err := cmd.Flags().GetBool("show-all")
-    if err != nil {
-        return fmt.Errorf("failed to parse --show-all flag: %w", err)
+    flags := make(map[testCmdBoolFlag]bool, len(testCmdBoolFlags))
+    for id, flag := range testCmdBoolFlags {
+        value, err := cmd.Flags().GetBool(flag.Long)
+        if err != nil {
+            return fmt.Errorf("Failed to parse --%s (-%s) flag:\n%w", flag.Long, flag.Short, err)
+        }
+        flags[id] = value
     }
 
     // load core early, so that if they fail we exit before doing any work
-    c, s, cfg := ctx.Client(), ctx.Scaffolder(), ctx.Config()
+    cfg := ctx.Config()
+    c, err := ctx.Client()
+    if err != nil {
+        return err
+    }
+    s, err := ctx.Scaffolder()
+    if err != nil {
+        return err
+    }
 
     // check if the user is authenticated
-    if !cfg.Credentials.IsSet() {
-        return fmt.Errorf("this command requires authentication. Add your LeetCode credentials in the config file using 'leet config edit'")
-    }
+	if !cfg.Credentials.IsSet() {
+		return fmt.Errorf(
+			"This command requires authentication. Add your LeetCode credentials in the " +
+			"config file using 'leet config edit'")
+	}
 
     // get and validate language
-    lang, ok := language.Get(args[1])
-    if !ok {
-        return fmt.Errorf("unknown language: %q — run 'leet languages' to see supported languages", args[1])
-    }
+	l, err := parseLanguage(args[1])
+	if err != nil {
+		return err
+	}
     // get and validate problem
     p, err := fetchPreviewByIdentifier(c, args[0])
     if err != nil {
@@ -59,38 +84,40 @@ func testProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
 
     // check if the problem directory and the snippet file exist
     if exists, err := s.ProblemDirExists(p); err != nil {
-        return fmt.Errorf("failed to check if problem %d is scaffolded: %w", p.Number, err)
-    } else if !exists {
-        return fmt.Errorf("problem %d is not scaffolded — run 'leet load %d' first", p.Number, p.Number)
-    }
-    if exists, err := s.SnippetExists(p, lang); err != nil {
-        return fmt.Errorf("failed to check if %s snippet exists for problem %d: %w", lang.Name, p.Number, err)
-    } else if !exists {
-        return fmt.Errorf("no %s file found for problem %d — run 'leet load %d --langs %s' first",
-            lang.Name, p.Number, p.Number, lang.Slug)
-    }
+		return fmt.Errorf("Failed to check if problem %d is scaffolded:\n%w", p.Number, err)
+	} else if !exists {
+		return fmt.Errorf("Problem %d is not scaffolded. Run 'leet load %d' first.", p.Number, p.Number)
+	}
+	if exists, err := s.SnippetExists(p, l); err != nil {
+		return fmt.Errorf("Failed to check if %s snippet exists for problem %d:\n%w",
+			l.Name, p.Number, err)
+	} else if !exists {
+		return fmt.Errorf("No %s file found for problem %d. Run 'leet load %d %s' to create one.",
+			l.Name, p.Number, p.Number, l.Slug)
+	}
 
-    // read the code snippet
-    code, err := s.ReadSnippet(p, lang)
-    if err != nil {
-        return fmt.Errorf("failed to read solution file: %w", err)
-    }
+	// Read the solution file
+	code, err := s.ReadSnippet(p, l)
+	if err != nil {
+		return fmt.Errorf("Failed to read solution file:\n%w", err)
+	}
 
     // read the testcases
     tests, err := s.ReadTestcases(p)
     if err != nil {
-        return fmt.Errorf("failed to read testcases: %w — use --input to provide test input manually", err)
+        return fmt.Errorf("Failed to read testcases:\n%w", err)
     }
 
     // Test the code
-    fmt.Printf("Testing solution for %d (%s) in %s...", p.Number, p.Title, lang.Name)
-    result, err := c.RunCode(p, lang, code, tests)
+    testMsg := fmt.Sprintf("Testing solution for %d (%s) in %s...", p.Number, p.Title, l.Name)
+    printActionStart(testMsg)
+    result, err := c.RunCode(p, l, code, tests)
     if err != nil {
-        return fmt.Errorf("failed to test solution: %w", err)
+        return fmt.Errorf("Failed to test solution:\n%w", err)
     }
-    fmt.Print("✓\n\n")
+    printActionSuccess()
 
-    printTestResult(result, tests, verbose, showAll)
+    printTestResult(result, tests, flags[verboseFlag], flags[showAllFlag])
     return nil
 }
 

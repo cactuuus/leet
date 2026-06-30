@@ -26,7 +26,7 @@ func (s *Scaffolder) SnippetExists(p problem.Preview, l language.Language) (bool
 func (s *Scaffolder) ReadSnippet(p problem.Preview, l language.Language) (string, error) {
 	content, err := os.ReadFile(s.GetFullFilepath(p, s.GetSnippetFilename(p, l)))
 	if err != nil {
-		return "", fmt.Errorf("failed to read snippet for problem %d: %w", p.Number, err)
+		return "", fmt.Errorf("Failed to read snippet for problem %d:\n%w", p.Number, err)
 	}
 	lines := strings.Split(string(content), "\n")
 	// strip out anything above the start marker, if present
@@ -51,13 +51,13 @@ func (s *Scaffolder) ReadSnippet(p problem.Preview, l language.Language) (string
 // placeholder.
 func (s *Scaffolder) WriteSnippet(p problem.Full, l language.Language) error {
 	// ensure the problem directory exists
-	if _, err := s.CreateProblemDir(p.Preview); err != nil {
+	if err := s.CreateProblemDir(p.Preview); err != nil {
 		return err
 	}
 	// parse the template
 	content, err := s.parseTemplate(p, l)
 	if err != nil {
-		return fmt.Errorf("failed to parse template for problem %d: %w", p.Number, err)
+		return err
 	}
 	// finally create the snippet file and write the content to it
 	file, err := os.Create(s.GetFullFilepath(p.Preview, s.GetSnippetFilename(p.Preview, l)))

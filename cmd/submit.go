@@ -4,18 +4,17 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/cactuuus/leet/internal/language"
 	"github.com/cactuuus/leet/internal/leetcode"
 	"github.com/spf13/cobra"
 )
 
 func NewSubmitCmd(ctx AppContext) *cobra.Command {
 	submitCmd := &cobra.Command{
-		Use:          "submit <number|daily> <lang>",
-		Short:        "Submit your solution to LeetCode.",
-		Long:         "Submit your solution to LeetCode.\nIf your solution fails, and the test case is not already in your local testcases file, you will have the option to add it.",
-		SilenceUsage: true,
-		Args:         cobra.ExactArgs(2),
+		Use:    "submit <number|daily> <lang>",
+		Short:  "Submit your solution to LeetCode.",
+		Long:	"Submit your solution to LeetCode.\nIf your solution fails, and the test case " +
+				"is not already in your local testcases file, you will have the option to add it.",
+		Args:   cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return submitProblem(cmd, args, ctx)
 		},
@@ -25,17 +24,27 @@ func NewSubmitCmd(ctx AppContext) *cobra.Command {
 }
 
 func submitProblem(_ *cobra.Command, args []string, ctx AppContext) error {
-	c, s, cfg := ctx.Client(), ctx.Scaffolder(), ctx.Config()
+	cfg := ctx.Config()
+	c, err := ctx.Client()
+	if err != nil {
+		return err
+	}
+	s, err := ctx.Scaffolder()
+	if err != nil {
+		return err
+	}
 
 	// Check authentication
 	if !cfg.Credentials.IsSet() {
-		return fmt.Errorf("this command requires authentication. Add your LeetCode credentials in the config file using 'leet config edit'")
+		return fmt.Errorf(
+			"This command requires authentication. Add your LeetCode credentials in the " +
+			"config file using 'leet config edit'")
 	}
 
 	// Validate language
-	lang, ok := language.Get(args[1])
-	if !ok {
-		return fmt.Errorf("unknown language: %q — run 'leet languages' to see supported languages", args[1])
+	l, err := parseLanguage(args[1])
+	if err != nil {
+		return err
 	}
 
 	// Validate problem
@@ -46,55 +55,67 @@ func submitProblem(_ *cobra.Command, args []string, ctx AppContext) error {
 
 	// Check if the directory and file exist
 	if exists, err := s.ProblemDirExists(p); err != nil {
-		return fmt.Errorf("failed to check if problem %d is scaffolded: %w", p.Number, err)
+		return fmt.Errorf("Failed to check if problem %d is scaffolded:\n%w", p.Number, err)
 	} else if !exists {
-		return fmt.Errorf("problem %d is not scaffolded — run 'leet load %d' first", p.Number, p.Number)
+		return fmt.Errorf("Problem %d is not scaffolded. Run 'leet load %d' first.", p.Number, p.Number)
 	}
-	if exists, err := s.SnippetExists(p, lang); err != nil {
-		return fmt.Errorf("failed to check if %s snippet exists for problem %d: %w", lang.Name, p.Number, err)
+	if exists, err := s.SnippetExists(p, l); err != nil {
+		return fmt.Errorf("Failed to check if %s snippet exists for problem %d:\n%w",
+			l.Name, p.Number, err)
 	} else if !exists {
-		return fmt.Errorf("no %s file found for problem %d — run 'leet load %d --langs %s' first",
-			lang.Name, p.Number, p.Number, lang.Slug)
+		return fmt.Errorf("No %s file found for problem %d. Run 'leet load %d %s' to create one.",
+			l.Name, p.Number, p.Number, l.Slug)
 	}
 
 	// Read the solution file
-	code, err := s.ReadSnippet(p, lang)
+	code, err := s.ReadSnippet(p, l)
 	if err != nil {
-		return fmt.Errorf("failed to read solution file: %w", err)
+		return fmt.Errorf("Failed to read solution file:\n%w", err)
 	}
 
 	// Submit to LeetCode
-	fmt.Printf("Submitting solution for %d (%s) in %s...", p.Number, p.Title, lang.Name)
-	result, err := c.SubmitSolution(p, lang, code)
+	submitMsg := fmt.Sprintf("Submitting solution for %d (%s) in %s...", p.Number, p.Title, l.Name)
+	printActionStart(submitMsg)
+	result, err := c.SubmitSolution(p, l, code)
 	if err != nil {
-		return fmt.Errorf("failed to submit solution: %w", err)
+		return fmt.Errorf("Failed to submit solution:\n%w", err)
 	}
-	fmt.Print("✓\n\n")
+	printActionSuccess()
 
 	printSubmitResult(result)
 
-	// If the submission failed, offer to add the failing testcase to the local testcases file
+	// If the submission failed due to a failing testcase, offer to add it to the local testcases file
 	if result.StatusCode != leetcode.ResultAccepted && result.LastTestcase != "" {
-		// check if testcase already exists in the local testcases file
-		existingTestcases, err := s.ReadTestcases(p)
-		if err != nil {
-			return fmt.Errorf("failed to read local testcases: %w", err)
-		}
-		for _, existing := range existingTestcases {
-			if strings.TrimSpace(existing) == strings.TrimSpace(result.LastTestcase) {
-				fmt.Println("\nThe failing testcase already exists in your local testcases file.")
-				return nil
+		// populate existing testcases, if any
+		var existingTestcases []string
+		offerAdd := true
+		if exists, err := s.TestcasesExists(p); err != nil {
+			return fmt.Errorf("Failed to check if local testcases file exists:\n%w", err)
+		} else if exists {
+			existingTestcases, err = s.ReadTestcases(p)
+			if err != nil {
+				return fmt.Errorf("Failed to read local testcases file:\n%w", err)
+			}
+			for _, existing := range existingTestcases {
+				if strings.TrimSpace(existing) == strings.TrimSpace(result.LastTestcase) {
+					fmt.Println("\nThis testcase already exists in your local testcases file.")
+					offerAdd = false
+					break
+				}
 			}
 		}
-
-		// prompt the user to add the failing testcase to their local testcases file
-		confirm, err := promptYesNo("\nAdd this testcase to your local ones? (y/n): ")
-		if err != nil {
-			fmt.Printf("Error prompting user: %v\n", err)
-		}
-		if confirm {
-			s.WriteTestcases(p, append(existingTestcases, result.LastTestcase))
-			fmt.Println("Testcase added to your local testcases file.")
+		if offerAdd {
+			// prompt the user to add the failing testcase to their local testcases file
+			confirm, err := promptYesNo("\nAdd this testcase to your local ones? (y/n): ")
+			if err != nil {
+				return fmt.Errorf("Error prompting user: %v\n", err)
+			}
+			if confirm {
+				s.WriteTestcases(p, append(existingTestcases, result.LastTestcase))
+				fmt.Println("Testcase added to your local testcases file.")
+			} else {
+				fmt.Println("Testcase not added.")
+			}
 		}
 	}
 	return nil
@@ -111,7 +132,7 @@ func printSubmitResult(r leetcode.SubmitCheckResult) {
 	}
 
 	if r.StatusCode == leetcode.ResultAccepted {
-		fmt.Print("RESULT: ✓ Accepted \n\n")
+		fmt.Print("RESULT: ✓ Accepted\n\n")
 		fmt.Printf("Testcases Passed.: %s/%s\n", correctTests, totalTests)
 		runtimePercentile, memoryPercentile := "-", "-"
 		if r.RuntimePercentile != nil {

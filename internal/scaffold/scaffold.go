@@ -20,10 +20,10 @@ type Scaffolder struct {
 func NewScaffolder(problemsDir, templatesDir string) (*Scaffolder, error) {
 	// ensure the problems and templates directories exist
 	if err := os.MkdirAll(problemsDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create problems directory: %w", err)
+		return nil, fmt.Errorf("Failed to create problems directory:\n%w", err)
 	}
 	if err := os.MkdirAll(templatesDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create templates directory: %w", err)
+		return nil, fmt.Errorf("Failed to create templates directory:\n%w", err)
 	}
 	return &Scaffolder{problemsDir: problemsDir, templatesDir: templatesDir}, nil
 }
@@ -59,11 +59,11 @@ func (s *Scaffolder) ProblemDirExists(p problem.Preview) (bool, error) {
 
 // CreateProblemDir creates the directory for a given problem, including any necessary parent
 // directories.
-func (s *Scaffolder) CreateProblemDir(p problem.Preview) (bool, error) {
+func (s *Scaffolder) CreateProblemDir(p problem.Preview) error {
 	if err := os.MkdirAll(s.GetProblemDir(p), 0755); err != nil {
-		return false, fmt.Errorf("failed to create problem directory: %w", err)
+		return fmt.Errorf("Failed to create problem directory:\n%w", err)
 	}
-	return true, nil
+	return nil
 }
 
 // FileOrDirExists checks if a file or directory exists at the given path.

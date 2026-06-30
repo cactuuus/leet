@@ -1,8 +1,9 @@
 package leetcode
 
 import (
-	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/cactuuus/leet/internal/auth"
 	"github.com/cactuuus/leet/internal/leetcode/cache"
@@ -31,18 +32,34 @@ func NewClient(
 }
 
 // do executes the HTTP request, adding authentication headers if credentials are set.
-func(c *Client) do(req *http.Request) (*http.Response, error) {
+func(c *Client) do(req *http.Request, referer string) (*http.Response, error) {
 	if c.credentials.IsSet() {
 		req.AddCookie(&http.Cookie{Name: "LEETCODE_SESSION", Value: c.credentials.SessionToken})
 		req.AddCookie(&http.Cookie{Name: "csrftoken", Value: c.credentials.CSRFToken})
 		req.Header.Set("X-CSRFToken", c.credentials.CSRFToken)
 	}
+	req.Header.Set("Referer", referer)
 	return c.httpClient.Do(req)
 }
 
 // makeProblemLink constructs the URL for a problem, using the base URL and the problem slug.
-func (c *Client) makeProblemLink(slug string) string {
-	return fmt.Sprintf("%s/problems/%s", c.baseURL, slug)
+func (c *Client) makeProblemLink(slug string) (string, error) {
+	return c.makeURL("problems", slug)
+}
+
+// makeURL constructs a URL by joining the base URL with the provided path segments.
+// It ensures that the resulting URL ends with a single trailing slash, requied for most LeetCode
+// endpoints.
+func (c *Client) makeURL(segments ...string) (string, error) {
+	endpoint, err := url.JoinPath(c.baseURL, segments...)
+	if err != nil {
+		return "", err
+	}
+	// Ensure the URL ends with a single trailing slash
+	if !strings.HasSuffix(endpoint, "/") {
+		endpoint += "/"
+	}
+	return endpoint, nil
 }
 
 // ClearCache clears the cache in memory and saves the empty state to disk.

@@ -25,25 +25,28 @@ func NewTemplateCmd(ctx AppContext) *cobra.Command {
 
 func NewTemplateMakeCmd(ctx AppContext) *cobra.Command {
 	templateMakeCmd := &cobra.Command{
-		Use:   			"make <lang>",
-		Short: 			"Create a custom template for a language.",
-		Long:  			"Create a custom template for a language.\nThis creates a new custom template for the specified language, based on the language's default template.",
-		Args:  			cobra.ExactArgs(1),
-		SilenceUsage: 	true,
-		RunE: 			func(cmd *cobra.Command, args []string) error {
+		Use:	"make <lang>",
+		Short: 	"Create a custom template for a language.",
+		Long:  	"Create a custom template for a language.\nThis creates a new custom template " +
+		 		"for the specified language, based on the language's default template.",
+		Args:  	cobra.ExactArgs(1),
+		RunE:	func(cmd *cobra.Command, args []string) error {
 			// validate flags
 			open, err := cmd.Flags().GetBool("open")
 			if err != nil {
-				return fmt.Errorf("failed to parse flags: %w", err)
+				return fmt.Errorf("Failed to parse --open flag:\n%w", err)
 			}
 
 			// get and validate language
-			l, ok := language.Get(args[0])
-			if !ok {
-				return fmt.Errorf("unknown language: %q", args[0])
+			l, err := parseLanguage(args[1])
+			if err != nil {
+				return err
 			}
 
-			s := ctx.Scaffolder()
+			s, err := ctx.Scaffolder()
+			if err != nil {
+				return err
+			}
 
 			// check if a custom template already exists, and if so confirm overwrite
 			exists, err := s.TemplateExists(l)
@@ -51,7 +54,8 @@ func NewTemplateMakeCmd(ctx AppContext) *cobra.Command {
 				return err
 			}
 			if exists {
-				confirm, err := promptYesNo(fmt.Sprintf("A custom template for %s already exists. Overwrite?", l.Name))
+				msg := fmt.Sprintf("A custom template for %s already exists. Overwrite?", l.Name)
+				confirm, err := promptYesNo(msg)
 				if err != nil {
 					return err
 				}
@@ -62,48 +66,50 @@ func NewTemplateMakeCmd(ctx AppContext) *cobra.Command {
 			}
 
 			// create the custom template
-			fmt.Print("Create custom template... ")
+			printActionStart("Create custom template")
 			if err := s.WriteCustomTemplate(l); err != nil {
-				return fmt.Errorf("failed to create custom template for %s: %w", l.Name, err)
+				return fmt.Errorf("Failed to create custom template for %s:\n%w", l.Name, err)
 			}
-			fmt.Print("✓\n")
+			printActionSuccess()
+
 
 			if open {
-				fmt.Print("Opening in editor... ")
-				if err := openInEditor(ctx.Config().Editor, s.GetTemplatePath(l)); err != nil {
-					return fmt.Errorf("failed to open directory in editor: %w", err)
-				}
-				fmt.Print("✓\n")
+				return openInEditor(ctx.Config().Editor, s.GetTemplatePath(l))
 			}
-
 			return nil
 		},
 	}
 
-	templateMakeCmd.Flags().BoolP("open", "o", false, "Open the custom template in your editor after creating it.")
+	templateMakeCmd.Flags().BoolP(
+		"open", "o", false,
+		"Open the custom template in your editor after creating it.",
+	)
 	return templateMakeCmd
 }
 
 func NewTemplateOpenCmd(ctx AppContext) *cobra.Command {
 	return &cobra.Command{
-		Use:   			"open [lang]",
-		Short: 			"Open the template file, or the templates directory, in your editor.",
-		Long: 			"Open the template file for a given language, or the templates directory, in your editor.\nIf no language is specified, the templates directory is opened.",
-		Args:  			cobra.MaximumNArgs(1),
-		SilenceUsage: 	true,
-		RunE: 			func(cmd *cobra.Command, args []string) error {
+		Use:	"open [lang]",
+		Short: 	"Open the template file, or the templates directory, in your editor.",
+		Long: 	"Open the template file for a given language in your editor, or the templates " +
+				"directory if no language is specified",
+		Args:  	cobra.MaximumNArgs(1),
+		RunE:	func(cmd *cobra.Command, args []string) error {
 			cfg := ctx.Config()
 
-			var dirToOpen string
-			if len(args) == 0 {
-				dirToOpen = cfg.TemplatesDir
-			} else {
+			dirToOpen := cfg.TemplatesDir
+			if len(args) > 0 {
 				// get and validate language
-				l, ok := language.Get(args[0])
-				if !ok {
-					return fmt.Errorf("unknown language: %q", args[0])
+				l, err := parseLanguage(args[1])
+					if err != nil {
+						return err
+					}
+
+				s, err := ctx.Scaffolder()
+				if err != nil {
+					return err
 				}
-				s := ctx.Scaffolder()
+
 				exists, err := s.TemplateExists(l)
 				if err != nil {
 					return err
@@ -111,15 +117,16 @@ func NewTemplateOpenCmd(ctx AppContext) *cobra.Command {
 				if exists {
 					dirToOpen = s.GetTemplatePath(l)
 				} else {
-					return fmt.Errorf("no custom template found for language %s. Use 'leet template make %s' to create one.", l.Name, l.Slug)
+					return fmt.Errorf(
+						"No custom template found for language %s. " +
+						"Use 'leet template make %s' to create one.",
+						l.Name, l.Slug)
 				}
 			}
 
-			fmt.Print("Opening in editor... ")
 			if err := openInEditor(ctx.Config().Editor, dirToOpen); err != nil {
 				return fmt.Errorf("failed to open directory in editor: %w", err)
 			}
-			fmt.Print("✓\n")
 			return nil
 		},
 	}
@@ -127,30 +134,29 @@ func NewTemplateOpenCmd(ctx AppContext) *cobra.Command {
 
 func NewTemplateDeleteCmd(ctx AppContext) *cobra.Command {
 	return &cobra.Command{
-		Use:   			"delete <lang>",
-		Short: 			"Delete a custom template for a language.",
-		Args:  			cobra.ExactArgs(1),
-		SilenceUsage: 	true,
-		RunE: 			func(cmd *cobra.Command, args []string) error {
+		Use:   	"delete <lang>",
+		Short: 	"Delete a custom template for a language.",
+		Args:  	cobra.ExactArgs(1),
+		RunE:	func(cmd *cobra.Command, args []string) error {
 			// get and validate language
-			l, ok := language.Get(args[0])
-			if !ok {
-				return fmt.Errorf("unknown language: %q", args[0])
-			}
-
-			s := ctx.Scaffolder()
-
-			exists, err := s.TemplateExists(l)
+			l, err := parseLanguage(args[1])
 			if err != nil {
 				return err
 			}
-			if !exists {
+
+			s, err := ctx.Scaffolder()
+			if err != nil {
+				return err
+			}
+
+			if exists, err := s.TemplateExists(l); err != nil {
+				return err
+			} else if !exists {
 				fmt.Printf("No custom template found for language %s, aborting.", l.Name)
 				return nil
 			}
-			err = os.Remove(s.GetTemplatePath(l))
-			if err != nil {
-				return fmt.Errorf("failed to delete template for %s: %w", l.Name, err)
+			if err := os.Remove(s.GetTemplatePath(l)); err != nil {
+				return fmt.Errorf("Failed to delete template for %s:\n%w", l.Name, err)
 			}
 			return nil
 		},
@@ -163,15 +169,17 @@ func NewTemplateListCmd(ctx AppContext) *cobra.Command {
 		Short: 			"List all custom templates.",
 		SilenceUsage: 	true,
 		RunE: 			func(cmd *cobra.Command, args []string) error {
-			s := ctx.Scaffolder()
+			s, err := ctx.Scaffolder()
+			if err != nil {
+				return err
+			}
+
 			// gather languages that have custom templates
 			var customTemplates []language.Language
 			for _, l := range language.All() {
-				exists, err := s.TemplateExists(l)
-				if err != nil {
+				if exists, err := s.TemplateExists(l); err != nil {
 					return err
-				}
-				if exists {
+				} else if exists {
 					customTemplates = append(customTemplates, l)
 				}
 			}
@@ -181,7 +189,7 @@ func NewTemplateListCmd(ctx AppContext) *cobra.Command {
 				return nil
 			}
 
-			fmt.Println("Custom templates:")
+			fmt.Println("CUSTOM TEMPLATES")
 			// print the list of custom templates
 			for _, t := range customTemplates {
 				fmt.Printf("- %s (%s)\n", t.Name, t.Slug)

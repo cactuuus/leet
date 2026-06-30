@@ -59,19 +59,19 @@ func (m *Manager) LoadFromFile() error {
 	if _, err := os.Stat(m.Path); os.IsNotExist(err) {
 		m.ConfigData = m.defaultData
 		if err := m.Save(); err != nil {
-			return fmt.Errorf("failed to save initial default config: %w", err)
+			return fmt.Errorf("Failed to save initial default config:\n%w", err)
 		}
 		return nil
 	}
 	// File exists -> parse it
 	if _, err := toml.DecodeFile(m.Path, &m.ConfigData); err != nil {
-		return fmt.Errorf("failed to decode config file: %w", err)
+		return fmt.Errorf("Failed to decode config file:\n%w", err)
 	}
 	// Self-healing schema check -> Outdated version found
 	if m.ConfigData.Version != configVersion {
 		m.ConfigData.Version = configVersion
 		if err := m.Save(); err != nil {
-			return fmt.Errorf("failed to automatically update config layout version: %w", err)
+			return fmt.Errorf("Failed to automatically update config layout version:\n%w", err)
 		}
 	}
 	return nil
@@ -81,7 +81,7 @@ func (m *Manager) LoadFromFile() error {
 func (m *Manager) Save() error {
 	// Ensure the directory exists before writing the file.
 	if err := os.MkdirAll(filepath.Dir(m.Path), 0700); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+		return fmt.Errorf("Failed to create config directory:\n%w", err)
 	}
 	// Convert a slice of strings into a TOML array representation.
 	funcMap := template.FuncMap{
@@ -98,12 +98,12 @@ func (m *Manager) Save() error {
 	}
 	tmpl, err := template.New("config").Funcs(funcMap).Parse(configTemplate)
 	if err != nil {
-		return fmt.Errorf("failed to parse config template: %w", err)
+		return fmt.Errorf("Failed to parse config template:\n%w", err)
 	}
 	// Write it to disk.
 	var buf bytes.Buffer
 	if err := tmpl.Execute(&buf, m.ConfigData); err != nil {
-		return fmt.Errorf("failed to render config template: %w", err)
+		return fmt.Errorf("Failed to render config template:\n%w", err)
 	}
 	return os.WriteFile(m.Path, buf.Bytes(), 0600)
 }
@@ -116,17 +116,17 @@ func (m *Manager) Reset() error {
 
 // String returns a safe summary of the config, redacting credentials.
 func (m *Manager) String() string {
-	credStatus := "not set"
+	credStatus := "❌Missing or Incomplete"
 	if m.ConfigData.Credentials.IsSet() {
-		credStatus = "set"
+		credStatus = "✓ Set"
 	}
 	return fmt.Sprintf(
-		"CONFIGURATION\n"+
-		"\tProblems directory.: %s\n"+
-		"\tPreferred languages: %v\n"+
-		"\tEditor command.....: %s\n"+
-		"\tTemplates directory: %s\n"+
-		"\tCredentials........: %s",
+		"CONFIGURATION\n\n"+
+		"Problems directory.: %s\n"+
+		"Preferred languages: %v\n"+
+		"Editor command.....: %s\n"+
+		"Templates directory: %s\n"+
+		"Credentials........: %s",
 		m.ConfigData.ProblemsDir,
 		m.ConfigData.PreferredLanguages,
 		m.ConfigData.Editor,

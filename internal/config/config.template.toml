@@ -1,5 +1,6 @@
 # Leet configuration file.
-# If breaking changes are introduced in updates, leet will automatically update this file to the latest schema and migrate your existing configuration. This also means that comments and formatting may be lost when leet updates this file, while your configuration values will of course be preserved when possible.
+version = "{{.Version}}" # do not change this manually
+# If breaking changes are introduced in updates, leet will automatically update this file to the latest schema and migrate your existing configuration (based on its version). This also means that comments and formatting may be lost when leet updates this file, while your configuration values will of course be preserved when possible.
 
 
 # Where problem folders get created.
@@ -27,9 +28,8 @@ preferred_languages = {{tomlArray .PreferredLanguages}}
 # Command used to open problem folders (e.g. "code", "subl", "nvim", "idea").
 # If left empty, falls back to the $EDITOR environment variable. If that's also unset, 'leet open' and 'leet load --open' will return an error.
 # EXAMPLE: "code"
-# DEFAULT: ""
+# DEFAULT: "{{.Editor}}"
 editor_cmd = "{{.Editor}}"
-
 
 
 # Authentication credentials required for 'leet run' and 'leet submit'.
@@ -39,7 +39,3 @@ editor_cmd = "{{.Editor}}"
 [credentials]
 session_token = "{{.Credentials.SessionToken}}"
 csrf_token = "{{.Credentials.CSRFToken}}"
-
-
-# Ignore this 'version' field, it is used and managed internally, based on the current version of leet.
-version = "{{.Version}}"

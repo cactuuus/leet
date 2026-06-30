@@ -18,7 +18,7 @@ func (s *Scaffolder) GetDescFilename(p problem.Preview) string {
 // WriteDescription creates the HTML description file for a given problem.
 func (s *Scaffolder) WriteDescription(p problem.Full) error {
 	// ensure the problem directory exists
-	if _, err := s.CreateProblemDir(p.Preview); err != nil {
+	if err := s.CreateProblemDir(p.Preview); err != nil {
 		return err
 	}
 	// create the description file and write to it

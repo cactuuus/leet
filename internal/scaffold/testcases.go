@@ -27,7 +27,7 @@ func (s *Scaffolder) TestcasesExists(p problem.Preview) (bool, error) {
 // readable and editable.
 func (s *Scaffolder) WriteTestcases(p problem.Preview, testcases []string) error {
 	// ensure the problem directory exists
-	if _, err := s.CreateProblemDir(p); err != nil {
+	if err := s.CreateProblemDir(p); err != nil {
 		return err
 	}
 	file, err := os.Create(s.GetFullFilepath(p, s.GetTestcasesFilename(p)))
@@ -44,7 +44,7 @@ func (s *Scaffolder) WriteTestcases(p problem.Preview, testcases []string) error
 func (s *Scaffolder) ReadTestcases(p problem.Preview) ([]string, error) {
 	content, err := os.ReadFile(s.GetFullFilepath(p, s.GetTestcasesFilename(p)))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read testcases file: %w", err)
+		return nil, fmt.Errorf("Failed to read testcases file:\n%w", err)
 	}
 	blocks := strings.Split(string(content), testcasesSeparator)
 	cases := make([]string, 0, len(blocks))

@@ -77,7 +77,7 @@ func (c *Cache) Load() error {
 		return c.Save()
 	}
 	if err != nil {
-		return fmt.Errorf("failed to read cache file: %w", err)
+		return fmt.Errorf("Failed to read cache file:\n%w", err)
 	}
 
 	// check the version of the cache file before fully unmarshalling it.
@@ -85,7 +85,7 @@ func (c *Cache) Load() error {
 		Version int `json:"version"`
 	}
 	if err := json.Unmarshal(data, &header); err != nil {
-		return fmt.Errorf("failed to unmarshal cache header: %w", err)
+		return fmt.Errorf("Failed to unmarshal cache header:\n%w", err)
 	}
 	if header.Version != c.data.Version {
 		// If the cache version does not match, clear the cache and save the new, empty, version.
@@ -96,7 +96,7 @@ func (c *Cache) Load() error {
 
 	// else unmarshal the full cache data into the Cache struct.
 	if err := json.Unmarshal(data, &c.data); err != nil {
-		return fmt.Errorf("failed to unmarshal cache data: %w", err)
+		return fmt.Errorf("Failed to unmarshal cache data:\n%w", err)
 	}
 	c.isLoaded = true
 	return nil
@@ -106,12 +106,12 @@ func (c *Cache) Load() error {
 func (c *Cache) Save() error {
 	file, err := os.Create(c.path)
 	if err != nil {
-		return fmt.Errorf("failed to create cache file: %w", err)
+		return fmt.Errorf("Failed to create cache file:\n%w", err)
 	}
 	defer file.Close()
 
 	if err := json.NewEncoder(file).Encode(c.data); err != nil {
-		return fmt.Errorf("failed to write cache file: %w", err)
+		return fmt.Errorf("Failed to write cache file:\n%w", err)
 	}
 	return nil
 }

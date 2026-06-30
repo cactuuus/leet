@@ -52,13 +52,16 @@ func (a *App) Config() *config.Manager {
 		PreferredLanguages: []string{},
 		Editor:             os.Getenv("EDITOR"), // try to get the editor from the environment variable, if set
 		Credentials:        auth.Credentials{},
-		BaseURL:	        "https://leetcode.com",
+		BaseURL:	        "https://leetcode.com/",
 		TemplatesDir:       filepath.Join(a.homeDir, ".config", "leet", "templates"),
 		CachePath:          filepath.Join(a.homeDir, ".cache", "leet", "problems.json"),
 	}
 	cfg := config.NewManager(a.configPath, defaultCfg)
 	if err := cfg.LoadFromFile(); err != nil {
-		fmt.Printf("Warning: failed to load config file, using defaults instead. If the error persists, please check your config file, or run `leet config reset` to reset it. (Error: %v)\n", err)
+		fmt.Printf(
+			"Warning: failed to load config file, using defaults instead." +
+			"If the error persists, check your config file or run `leet config reset` to reset it. " +
+			"(reason: %v)\n", err)
 	}
 	a.config = cfg
 	return cfg
@@ -66,37 +69,35 @@ func (a *App) Config() *config.Manager {
 
 // Client initializes a LeetCode client and returns it, caching it for future calls.
 // If the client fails to initialize, it prints an error message and exits the program.
-func (a *App) Client() *leetcode.Client {
+func (a *App) Client() (*leetcode.Client, error) {
 	// if the client is already initialized, return it
 	if a.client != nil {
-		return a.client
+		return a.client, nil
 	}
 	// else initialize it then return it
 	cfg := a.Config()
 	client, err := leetcode.NewClient(cfg.CachePath, cfg.BaseURL, http.DefaultClient, cfg.Credentials)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to initialize LeetCode client: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("Failed to initialize LeetCode client:\n%w", err)
 	}
 	a.client = client
-	return client
+	return client, nil
 }
 
 // Scaffolder initializes a scaffolder instance and returns it, caching it for future calls.
 // If the scaffolder fails to initialize, it prints an error message and exits the program.
-func (a *App) Scaffolder() *scaffold.Scaffolder {
+func (a *App) Scaffolder() (*scaffold.Scaffolder, error) {
 	// if the scaffolder is already initialized, return it
 	if a.scaffolder != nil {
-		return a.scaffolder
+		return a.scaffolder, nil
 	}
 	// else initialize it then return it
 	s, err := scaffold.NewScaffolder(a.Config().ProblemsDir, a.Config().TemplatesDir)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: failed to initialize file scaffolder: %v\n", err)
-		os.Exit(1)
+		return nil, fmt.Errorf("Failed to initialize file scaffolder:\n%w", err)
 	}
 	a.scaffolder = s
-	return s
+	return s, nil
 }
 
 // getHomeDir returns the user's home directory, or an error if it cannot be determined.

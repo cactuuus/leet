@@ -3,6 +3,7 @@ package language
 import (
 	"embed"
 	"fmt"
+	"path/filepath"
 	"strings"
 )
 
@@ -57,7 +58,6 @@ var	known = map[string]Language{
 func Get(id string) (Language, bool) {
 	// normalize to lowercase for case-insensitive comparison
 	id = strings.ToLower(id)
-
 	// try slug lookup first
 	if l, ok := known[id]; ok {
 		return l, true
@@ -83,10 +83,10 @@ func All() []Language {
 
 // GetDefaultTemplate returns the default template content for a given language.
 func GetDefaultTemplate(l Language) (string, error) {
-	path := fmt.Sprintf("templates/%s.template", l.Slug)
+	path := filepath.Join("templates", fmt.Sprintf("%s.template", l.Slug))
 	content, err := templates.ReadFile(path)
 	if err != nil {
-		return "", fmt.Errorf("no default template for %s: %w", l.Slug, err)
+		return "", fmt.Errorf("No default template for %s:\n%w", l.Slug, err)
 	}
 	return string(content), nil
 }

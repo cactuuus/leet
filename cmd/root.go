@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/cactuuus/leet/internal/config"
@@ -12,16 +13,20 @@ import (
 // AppContext defines the interface for the main application, providing access to its core components.
 type AppContext interface {
 	Config() 		*config.Manager
-	Client() 		*leetcode.Client
-	Scaffolder() 	*scaffold.Scaffolder
+	Client() 		(*leetcode.Client, error)
+	Scaffolder() 	(*scaffold.Scaffolder, error)
 }
 
 // Execute initializes each command and runs the root command of the application.
 func Execute(ctx AppContext) {
 	rootCmd := &cobra.Command{
-		Use:   "leet",
-		Short: "A simple utility to streamline leetcoding locally.",
-		Long:  `Leet is a simple application that allows to more effectively leetcode locally.`,
+		Use:   	"leet",
+		Short: 	"A simple utility to streamline leetcoding locally.",
+		Long:  	"Leet is a simple application that allows to more effectively leetcode locally.\n" +
+				"It provides commands to load problems, open them in your editor, " +
+				"run tests and submit solutions. All of these configurable to your liking!",
+		SilenceUsage: true,
+		SilenceErrors: true,
 	}
 
 	// we register the subcommands here, passing the app to each of them
@@ -35,6 +40,7 @@ func Execute(ctx AppContext) {
 	rootCmd.AddCommand(NewCacheCmd(ctx))
 
 	if err := rootCmd.Execute(); err != nil {
+		fmt.Printf("\n**ERROR**\n%v\n", err)
 		os.Exit(1)
 	}
 }
