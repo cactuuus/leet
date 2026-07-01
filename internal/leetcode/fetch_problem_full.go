@@ -214,7 +214,8 @@ func (c *Client) GetDailyProblem() (problem.Full, error) {
 	}
 	if !ok {
 		// cache miss, refresh and try again
-		daily, validUntil, err := c.fetchDailyProblem()
+		var validUntil int64
+		daily, validUntil, err = c.fetchDailyProblem()
 		if err != nil {
 			return problem.Full{}, fmt.Errorf("Failed to fetch daily problem:\n%w", err)
 		}
