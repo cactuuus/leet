@@ -1,35 +1,39 @@
 # Leet configuration file.
-version = "{{.Version}}" # do not change this manually
+version = {{.ConfigData.Version}} # do not change this manually
 # If breaking changes are introduced in updates, leet will automatically update this file to the latest schema and migrate your existing configuration (based on its version). This also means that comments and formatting may be lost when leet updates this file, while your configuration values will of course be preserved when possible.
+
+# NOTE ON PATHS/STRINGS: Whenever you enter a path in this file that contains a single quote ('), you must wrap that path in double quotes (") instead of single quotes ('), and escape any backslashes by prefixing them with an additional backslash (\). For example, if your home directory is `C:\Users\John Doe`:
+#   YES -> path = "C:\\Users\\O'Connor\\leet-problems"
+#   NO  -> path = 'C:\Users\O'Connor\leet-problems'  # This will break during parsing.
 
 
 # Where problem folders get created.
 # If you change this, you will need to move your existing problems to the new location, or leet will not be able to find them.
-# EXAMPLE: "/home/johndoe/leet-problems"
-# DEFAULT: "YOUR/HOME/PATH/leet-problems"
-problems_dir = "{{.ProblemsDir}}"
+# EXAMPLE: '/home/johndoe/leet-problems'
+# DEFAULT: {{tomlLiteral .Defaults.ProblemsDir}}
+problems_dir = {{tomlLiteral .ConfigData.ProblemsDir}}
 
 
 # Where custom language templates are stored.
 # If left empty, defaults to ~/.config/leet/templates/
-# EXAMPLE: "/home/johndoe/.config/leet/templates"
-# DEFAULT: "YOUR/HOME/PATH/.config/leet/templates"
-templates_dir = "{{.TemplatesDir}}"
+# EXAMPLE: '/home/johndoe/.config/leet/templates'
+# DEFAULT: {{tomlLiteral .Defaults.TemplatesDir}}
+templates_dir = {{tomlLiteral .ConfigData.TemplatesDir}}
 
 
 # Languages to scaffold by default when 'leet load' runs without --langs.
 # Run 'leet languages' to see supported languages. This is case insensitive, and accepts both slugs and names (e.g. "Go", "go", and "golang" are all accepted).
 # Leave empty to require --langs or --desc-only on every load.
 # EXAMPLE: ["golang", "python3", "typescript"]
-# DEFAULT: []
-preferred_languages = {{tomlArray .PreferredLanguages}}
+# DEFAULT: {{tomlArray .Defaults.PreferredLanguages}}
+preferred_languages = {{tomlArray .ConfigData.PreferredLanguages}}
 
 
 # Command used to open problem folders (e.g. "code", "subl", "nvim", "idea").
 # If left empty, falls back to the $EDITOR environment variable. If that's also unset, 'leet open' and 'leet load --open' will return an error.
-# EXAMPLE: "code"
-# DEFAULT: "{{.Editor}}"
-editor_cmd = "{{.Editor}}"
+# EXAMPLE: 'code'
+# DEFAULT: {{tomlLiteral .Defaults.Editor}}
+editor_cmd = {{tomlLiteral .ConfigData.Editor}}
 
 
 # Authentication credentials required for 'leet run' and 'leet submit'.
@@ -37,5 +41,5 @@ editor_cmd = "{{.Editor}}"
 #   Application > Cookies > leetcode.com > LEETCODE_SESSION and csrftoken.
 # WARNING: treat these like passwords: do not share these credentials, or else someone might impersonate you.
 [credentials]
-session_token = "{{.Credentials.SessionToken}}"
-csrf_token = "{{.Credentials.CSRFToken}}"
+session_token = {{tomlLiteral .ConfigData.Credentials.SessionToken}}
+csrf_token = {{tomlLiteral .ConfigData.Credentials.CSRFToken}}

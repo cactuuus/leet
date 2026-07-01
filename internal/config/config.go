@@ -17,7 +17,13 @@ import (
 var configTemplate string
 
 // Increment this when breaking changes are introduced to force an automatic file layout migration.
-const configVersion = 2
+const configVersion = 3
+
+// templateData is used to pass both the default and current configuration values to the template.
+type templateData struct {
+	Defaults ConfigData
+	ConfigData
+}
 
 // ConfigData represents the runtime application configuration.
 type ConfigData struct {
@@ -64,15 +70,21 @@ func (m *Manager) LoadFromFile() error {
 		return nil
 	}
 	// File exists -> parse it
-	if _, err := toml.DecodeFile(m.Path, &m.ConfigData); err != nil {
+	meta, err := toml.DecodeFile(m.Path, &m.ConfigData)
+	if err != nil {
 		return fmt.Errorf("Failed to decode config file:\n%w", err)
 	}
-	// Self-healing schema check -> Outdated version found
-	if m.ConfigData.Version != configVersion {
+
+	// Self-healing schema check -> Outdated version found or no version key present
+	if !meta.IsDefined("version")  || m.ConfigData.Version != configVersion {
+		fmt.Printf(
+			"Warning: old config version detected, updating to latest schema (v%d)...",
+			configVersion)
 		m.ConfigData.Version = configVersion
 		if err := m.Save(); err != nil {
 			return fmt.Errorf("Failed to automatically update config layout version:\n%w", err)
 		}
+		fmt.Println(" ✓")
 	}
 	return nil
 }
@@ -85,6 +97,12 @@ func (m *Manager) Save() error {
 	}
 	// Convert a slice of strings into a TOML array representation.
 	funcMap := template.FuncMap{
+		"tomlLiteral": func(s string) string {
+			if strings.Contains(s, "'") {
+				return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(s) + `"`
+			}
+			return "'" + s + "'"
+		},
 		"tomlArray": func(s []string) string {
 			if len(s) == 0 {
 				return "[]"
@@ -101,14 +119,10 @@ func (m *Manager) Save() error {
 		return fmt.Errorf("Failed to parse config template:\n%w", err)
 	}
 
-	// Normalize paths for TOML serialization (Windows backslashes break TOML parsing).
-    data := m.ConfigData
-    data.ProblemsDir = filepath.ToSlash(data.ProblemsDir)
-    data.TemplatesDir = filepath.ToSlash(data.TemplatesDir)
-
 	// Write it to disk.
+	tmplData := templateData{Defaults: m.defaultData, ConfigData: m.ConfigData}
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, data); err != nil {
+	if err := tmpl.Execute(&buf, tmplData); err != nil {
 		return fmt.Errorf("Failed to render config template:\n%w", err)
 	}
 	return os.WriteFile(m.Path, buf.Bytes(), 0600)
@@ -128,11 +142,13 @@ func (m *Manager) String() string {
 	}
 	return fmt.Sprintf(
 		"CONFIGURATION\n\n"+
+		"Version............: %d\n"+
 		"Problems directory.: %s\n"+
 		"Preferred languages: %v\n"+
 		"Editor command.....: %s\n"+
 		"Templates directory: %s\n"+
 		"Credentials........: %s",
+		m.ConfigData.Version,
 		m.ConfigData.ProblemsDir,
 		m.ConfigData.PreferredLanguages,
 		m.ConfigData.Editor,
