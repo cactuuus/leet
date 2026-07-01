@@ -3,7 +3,6 @@ package language
 import (
 	"embed"
 	"fmt"
-	"path/filepath"
 	"strings"
 )
 
@@ -83,8 +82,8 @@ func All() []Language {
 
 // GetDefaultTemplate returns the default template content for a given language.
 func GetDefaultTemplate(l Language) (string, error) {
-	path := filepath.Join("templates", fmt.Sprintf("%s.template", l.Slug))
-	content, err := templates.ReadFile(path)
+	// embed package requires forward slashes no matter the OS
+	content, err := templates.ReadFile(fmt.Sprintf("templates/%s.template", l.Slug))
 	if err != nil {
 		return "", fmt.Errorf("No default template for %s:\n%w", l.Slug, err)
 	}
