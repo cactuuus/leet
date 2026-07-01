@@ -75,7 +75,7 @@ func newCacheOpenCmd(ctx AppContext) *cobra.Command {
 				path),
 		Args:  	cobra.NoArgs,
 		RunE: 	func(cmd *cobra.Command, args []string) error {
-			if err := openInEditor(ctx.Config().Editor, path); err != nil {
+			if err := openInEditor(ctx.Config(), path); err != nil {
 				return fmt.Errorf(
 					"Failed to open cache directory in editor. Open it manually at %s, " +
 					"or run 'leet cache clear' to reset the cache:\n%w",

@@ -157,7 +157,7 @@ func loadProblem(cmd *cobra.Command, args []string, ctx AppContext) error {
 
 	// open in editor if requested
 	if flags[openFlag] {
-		return openInEditor(cfg.Editor, s.GetProblemDir(p.Preview))
+		return openInEditor(cfg, s.GetProblemDir(p.Preview))
 	}
 	return nil
 }

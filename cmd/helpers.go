@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cactuuus/leet/internal/config"
 	"github.com/cactuuus/leet/internal/language"
 	"github.com/cactuuus/leet/internal/leetcode"
 	"github.com/cactuuus/leet/internal/problem"
@@ -48,16 +49,34 @@ func promptYesNo(msg string) (bool, error) {
 
 // openInEditor opens path with the given editor command.
 // It returns an error if the editor command is empty or if the command fails to run.
-func openInEditor(editorCmd string, path string) error {
+// openInEditor opens path with the given editor command.
+// It returns an error if the editor command is empty or if the command fails to run.
+func openInEditor(cfg *config.Manager, path string) error {
 	printActionStart("Opening in editor")
-	// if still empty, return an error
-	if editorCmd == "" {
-		return fmt.Errorf("No editor configured, set 'editor' in your config file.")
+
+	// select the appropriate command based on whether the path is a file or directory
+	var command string
+	// check if the path is a directory
+	if info, err := os.Stat(path); err == nil && info.IsDir() {
+		if cfg.OpenFoldersWith == "" {
+			return fmt.Errorf("No command configured to open folders. Set it with `leet config edit`")
+		}
+		command = cfg.OpenFoldersWith
+	} else {
+		if cfg.OpenFilesWith == "" {
+			return fmt.Errorf("No command configured to open files. Set it with `leet config edit`")
+		}
+		command = cfg.OpenFilesWith
 	}
-	c := exec.Command(editorCmd, path)
+
+	// Split the editor command into pieces (e.g., "code --wait" -> ["code", "--wait"])
+	args := strings.Fields(command)
+	// Pass the binary and the full slice of arguments
+	c := exec.Command(args[0], append(args[1:], path)...)
+
 	c.Stdin, c.Stdout, c.Stderr = os.Stdin, os.Stdout, os.Stderr
 	if err := c.Run(); err != nil {
-		return fmt.Errorf("Failed to open %s in editor:\n%w", path, err)
+		return fmt.Errorf("Failed to open file/folder:\n%w", err)
 	}
 	printActionSuccess()
 	return nil

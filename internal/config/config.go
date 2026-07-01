@@ -17,7 +17,7 @@ import (
 var configTemplate string
 
 // Increment this when breaking changes are introduced to force an automatic file layout migration.
-const configVersion = 3
+const configVersion = 4
 
 // templateData is used to pass both the default and current configuration values to the template.
 type templateData struct {
@@ -30,7 +30,8 @@ type ConfigData struct {
 	Version            int              `toml:"version"`
 	ProblemsDir        string           `toml:"problems_dir"`
 	PreferredLanguages []string         `toml:"preferred_languages"`
-	Editor             string           `toml:"editor_cmd"`
+	OpenFilesWith      string           `toml:"open_files_with"`
+	OpenFoldersWith    string           `toml:"open_folders_with"`
 	TemplatesDir       string           `toml:"templates_dir"`
 	Credentials        auth.Credentials `toml:"credentials"`
 
@@ -142,17 +143,21 @@ func (m *Manager) String() string {
 	}
 	return fmt.Sprintf(
 		"CONFIGURATION\n\n"+
-		"Version............: %d\n"+
-		"Problems directory.: %s\n"+
-		"Preferred languages: %v\n"+
-		"Editor command.....: %s\n"+
-		"Templates directory: %s\n"+
-		"Credentials........: %s",
+		"Version.............: %d\n"+
+		"Location............: %s\n"+
+		"Problems directory..: %s\n"+
+		"Templates directory.: %s\n"+
+		"Preferred languages.: %v\n"+
+		"Open files with.....: %s\n"+
+		"Open folders with...: %s\n"+
+		"Credentials.........: %s\n",
 		m.ConfigData.Version,
+		m.Path,
 		m.ConfigData.ProblemsDir,
-		m.ConfigData.PreferredLanguages,
-		m.ConfigData.Editor,
 		m.ConfigData.TemplatesDir,
+		m.ConfigData.PreferredLanguages,
+		m.ConfigData.OpenFilesWith,
+		m.ConfigData.OpenFoldersWith,
 		credStatus,
 	)
 }

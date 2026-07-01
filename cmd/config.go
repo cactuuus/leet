@@ -51,7 +51,7 @@ func newConfigEditCmd(ctx AppContext) *cobra.Command {
 				ctx.Config().Path),
 		RunE: 	func(cmd *cobra.Command, args []string) error {
 			cfg := ctx.Config()
-			if err := openInEditor(cfg.Editor, cfg.Path); err != nil {
+			if err := openInEditor(cfg, cfg.Path); err != nil {
 				return fmt.Errorf(
 					"Failed to open config file in editor. Open it manually at %s, " +
 					"or run 'leet config reset' to restore it to default values:\n%w",

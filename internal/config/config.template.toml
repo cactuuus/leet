@@ -37,12 +37,17 @@ templates_dir = {{tomlLiteral .ConfigData.TemplatesDir}}
 preferred_languages = {{tomlArray .ConfigData.PreferredLanguages}}
 
 
-# Command used to open problem folders (e.g. "code", "subl", "nvim", "idea").
-# It is originally set to your default editor (what your '$EDITOR' environment variable is set to),
-# if any. If left empty, commands like 'leet open' and 'leet load --open' will return an error.
+# Commands used to open folders and files (e.g. "code", "subl", "nvim", "idea", "explorer").
+# Beware that the defaults are set to 'my best guess' at what your default editor/system is.
+# It might be wrong, so please check it and change it if necessary.
+# If empty or set to a wrong value, commands like 'leet open' and 'leet load --open' will fail
+# return an error.
 # EXAMPLE: 'code'
-# DEFAULT: {{tomlLiteral .Defaults.Editor}}
-editor_cmd = {{tomlLiteral .ConfigData.Editor}}
+# DEFAULT: {{tomlLiteral .Defaults.OpenFilesWith}}
+open_files_with = {{tomlLiteral .ConfigData.OpenFilesWith}}
+
+# DEFAULT: {{tomlLiteral .Defaults.OpenFoldersWith}}
+open_folders_with = {{tomlLiteral .ConfigData.OpenFoldersWith}}
 
 
 # Authentication credentials required for 'leet run' and 'leet submit'.

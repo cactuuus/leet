@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/cactuuus/leet/cmd"
 	"github.com/cactuuus/leet/internal/auth"
@@ -45,12 +46,33 @@ func (a *App) Config() *config.Manager {
 	if a.config != nil {
 		return a.config
 	}
+
+	// get 'best guess' at editor, based on OS
+	var fileCmd, folderCmd string
+	if editor := os.Getenv("EDITOR"); editor != "" {
+		fileCmd = editor
+		folderCmd = editor
+	} else {
+		switch runtime.GOOS {
+		case "windows":
+			fileCmd = "notepad"
+			folderCmd = "explorer"
+		case "darwin":	// my best guesses, I have no idea about macs
+			fileCmd = "open -a TextEdit"
+			folderCmd = "open"
+		default:
+			fileCmd = "xdg-open"
+			folderCmd = "xdg-open"
+		}
+	}
+
 	// else load it then return it
 	defaultCfg := config.ConfigData{
 		Version:            -1, // this will be overwritten by the config manager
 		ProblemsDir:        filepath.Join(a.homeDir, "leet-problems"),
 		PreferredLanguages: []string{},
-		Editor:             os.Getenv("EDITOR"), // try to get the editor from the environment variable, if set
+		OpenFilesWith:      fileCmd,
+		OpenFoldersWith:    folderCmd,
 		Credentials:        auth.Credentials{},
 		BaseURL:	        "https://leetcode.com/",
 		TemplatesDir:       filepath.Join(a.homeDir, ".config", "leet", "templates"),

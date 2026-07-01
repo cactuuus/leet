@@ -74,7 +74,7 @@ func NewTemplateMakeCmd(ctx AppContext) *cobra.Command {
 
 
 			if open {
-				return openInEditor(ctx.Config().Editor, s.GetTemplatePath(l))
+				return openInEditor(ctx.Config(), s.GetTemplatePath(l))
 			}
 			return nil
 		},
@@ -124,7 +124,7 @@ func NewTemplateOpenCmd(ctx AppContext) *cobra.Command {
 				}
 			}
 
-			if err := openInEditor(ctx.Config().Editor, dirToOpen); err != nil {
+			if err := openInEditor(ctx.Config(), dirToOpen); err != nil {
 				return fmt.Errorf("failed to open directory in editor: %w", err)
 			}
 			return nil

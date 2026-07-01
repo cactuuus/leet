@@ -48,5 +48,5 @@ func openProblem(_ *cobra.Command, args []string, ctx AppContext) error {
 		}
 	}
 
-	return openInEditor(cfg.Editor, dirToOpen)
+	return openInEditor(cfg, dirToOpen)
 }
