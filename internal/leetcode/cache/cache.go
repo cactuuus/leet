@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/cactuuus/leet/internal/problem"
@@ -104,6 +105,11 @@ func (c *Cache) Load() error {
 
 // Save saves the cache to disk.
 func (c *Cache) Save() error {
+	// Ensure the directory exists before writing the file.
+	if err := os.MkdirAll(filepath.Dir(c.path), 0700); err != nil {
+		return fmt.Errorf("Failed to create cache directory:\n%w", err)
+	}
+
 	file, err := os.Create(c.path)
 	if err != nil {
 		return fmt.Errorf("Failed to create cache file:\n%w", err)
